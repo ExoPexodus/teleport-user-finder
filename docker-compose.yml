@@ -18,11 +18,23 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
+      # Database connection
       - DB_HOST=postgres
       - DB_NAME=teleport
       - DB_USER=teleport
       - DB_PASSWORD=teleport123
       - DEBUG=False
+      # Teleport authentication
+      - SECRET_KEY=${SECRET_KEY:-default_secret_key}
+      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - AUTH_PASSWORD_HASH=${AUTH_PASSWORD_HASH}
+      # SSH configuration for teleport
+      - SSH_HOSTS=${SSH_HOSTS:-'{"default":"localhost"}'}
+      - SSH_PORT=${SSH_PORT:-22}
+      - SSH_USER=${SSH_USER:-root}
+      - SSH_KEY_PATH=${SSH_KEY_PATH:-/app/ssh_key}
+    volumes:
+      - ${SSH_KEY_LOCAL_PATH:-./ssh_key}:${SSH_KEY_PATH:-/app/ssh_key}:ro
     depends_on:
       - postgres
     networks:

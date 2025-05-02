@@ -1,91 +1,107 @@
 
-# Teleport User Management
+# Teleport User Management System
 
-A full-stack application for managing users across multiple Teleport instances.
+This application provides a user management interface for teleport users and includes API endpoints for teleport token generation.
 
-## Architecture
+## Setup
 
-This application consists of three main components:
+### Environment Variables
 
-1. **Frontend**: React application with Typescript and Tailwind CSS
-2. **Backend**: Python Flask API
-3. **Database**: PostgreSQL for data storage
+For the teleport API functionality, you need to set the following environment variables:
 
-## Getting Started
+```sh
+# Authentication
+SECRET_KEY=your_jwt_secret_key
+AUTH_USERNAME=admin
+AUTH_PASSWORD_HASH=your_bcrypt_hash  # Generate using the steps below
 
-### Using Docker (Recommended)
+# SSH Configuration
+SSH_HOSTS='{"client1":"hostname1","client2":"hostname2"}'
+SSH_PORT=22
+SSH_USER=teleport
+SSH_KEY_PATH=/app/ssh_key
+SSH_KEY_LOCAL_PATH=./path/to/your/ssh_key  # Path to SSH key on host machine
+```
 
-The easiest way to run this application is using Docker Compose:
+### Generating Password Hash
 
-```bash
-# Build and start all services
+To generate a password hash for `AUTH_PASSWORD_HASH`:
+
+1. In development mode, use the `/teleport/generate-hash` endpoint:
+   ```
+   POST /teleport/generate-hash
+   {"password": "your_secure_password"}
+   ```
+
+2. Or use a Python script:
+   ```python
+   from flask_bcrypt import Bcrypt
+   bcrypt = Bcrypt()
+   password = "your_secure_password"
+   hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+   print(hashed_password)
+   ```
+
+## API Usage
+
+### Authentication
+
+```
+POST /teleport/login
+{
+  "username": "admin",
+  "password": "your_password"
+}
+```
+
+Response:
+```
+{
+  "token": "jwt_token_here"
+}
+```
+
+### Generate Teleport Node Token
+
+```
+GET /teleport/tkgen
+Headers: {
+  "x-access-token": "your_jwt_token",
+  "Content-Type": "application/json"
+}
+Body: {
+  "client": "client1"  # Must match a key in SSH_HOSTS
+}
+```
+
+Response:
+```
+{
+  "invite_token": "token_value",
+  "expiry": "5m0s",
+  "join_command": {
+    "command": "teleport start",
+    "options": {
+      "roles": "node",
+      "token": "token_value",
+      "ca_pin": "sha256:pin_value",
+      "auth_server": "server:3025"
+    }
+  },
+  "notes": []
+}
+```
+
+## User Management
+
+- GET /api/users - List all users
+- GET /api/users?portal=name - List users filtered by portal
+- PUT /api/users/{id} - Update user information
+
+## Running with Docker Compose
+
+```
 docker-compose up -d
-
-# Check service status
-docker-compose ps
-
-# View logs
-docker-compose logs -f
 ```
 
-The application will be available at http://localhost
-
-### Development Setup
-
-#### Frontend
-
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-#### Backend
-
-```bash
-# Navigate to backend directory
-cd backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start Flask server
-flask run
-```
-
-#### Database
-
-For development, you can run PostgreSQL using Docker:
-
-```bash
-docker run -d --name teleport-postgres -e POSTGRES_DB=teleport -e POSTGRES_USER=teleport -e POSTGRES_PASSWORD=teleport123 -p 5432:5432 -v $(pwd)/backend/init.sql:/docker-entrypoint-initdb.d/init.sql postgres:15
-```
-
-## API Endpoints
-
-- `GET /api/users` - Get all users
-- `GET /api/users?portal=kocharsoft` - Get users from a specific portal
-- `PUT /api/users/:id` - Update a specific user
-
-## Environment Variables
-
-### Frontend
-- `NODE_ENV` - Set to 'production' for production builds
-
-### Backend
-- `DB_HOST` - PostgreSQL host
-- `DB_NAME` - PostgreSQL database name
-- `DB_USER` - PostgreSQL username
-- `DB_PASSWORD` - PostgreSQL password
-- `DEBUG` - Set to 'True' for development mode
+This will start the frontend, backend, and PostgreSQL database.
