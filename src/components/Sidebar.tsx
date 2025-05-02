@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Database, Download, ArrowLeft, ArrowRight, UserSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
@@ -11,6 +11,20 @@ import {
   TooltipProvider 
 } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -21,17 +35,25 @@ interface SidebarProps {
 export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [portalDialogOpen, setPortalDialogOpen] = useState(false);
+  const [selectedPortal, setSelectedPortal] = useState<string | null>(null);
   
   const refreshData = () => {
     queryClient.invalidateQueries({ queryKey: ['users'] });
     toast({
       title: "Data refreshed",
-      description: "User data has been successfully refreshed from the server."
+      description: `User data has been successfully refreshed${selectedPortal ? ` from ${selectedPortal}` : ''}.`
     });
+    setPortalDialogOpen(false);
   };
 
   const handleToggle = () => {
     setIsOpen(!isOpen);
+  };
+
+  const openPortalDialog = () => {
+    setSelectedPortal(null);
+    setPortalDialogOpen(true);
   };
 
   const downloadCSV = () => {
@@ -115,7 +137,7 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
                     variant="ghost" 
                     size={isOpen ? "default" : "icon"} 
                     className={`w-full justify-start text-white hover:bg-gray-700 ${!isOpen && 'p-2'} cursor-pointer`}
-                    onClick={refreshData}
+                    onClick={openPortalDialog}
                   >
                     <Database size={20} className="mr-2" />
                     <span className={`transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
@@ -166,6 +188,38 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
           </div>
         )}
       </div>
+
+      {/* Portal Selection Dialog */}
+      <Dialog open={portalDialogOpen} onOpenChange={setPortalDialogOpen}>
+        <DialogContent className="bg-teleport-gray border-teleport-blue">
+          <DialogHeader>
+            <DialogTitle className="text-white">Select Portal</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-300 mb-4">Choose which portal to fetch user data from:</p>
+            <Select onValueChange={setSelectedPortal} value={selectedPortal || undefined}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a portal" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="kocharsoft">Kocharsoft</SelectItem>
+                <SelectItem value="igzy">Igzy</SelectItem>
+                <SelectItem value="maxicus">Maxicus</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPortalDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={refreshData} 
+              disabled={!selectedPortal}
+              className="bg-teleport-blue hover:bg-teleport-blue/80"
+            >
+              Fetch Users
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 };
