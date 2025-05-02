@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '@/types/user';
 import { 
   Dialog, 
@@ -27,17 +27,21 @@ export const UserEditDialog = ({ user, open, onOpenChange, onUserUpdate }: UserE
   const [editedUser, setEditedUser] = useState<User>({ ...user });
   const { toast } = useToast();
 
+  // Reset edited user when the dialog opens with a new user
+  useEffect(() => {
+    if (open) {
+      setEditedUser({ ...user });
+    }
+  }, [user, open]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setEditedUser(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSave = () => {
-    onUserUpdate(editedUser);
-    toast({
-      title: "User updated",
-      description: `${editedUser.name}'s information has been updated.`
-    });
+    // Ensure we pass the latest edited user data
+    onUserUpdate({ ...editedUser });
     onOpenChange(false);
   };
 
@@ -156,15 +160,15 @@ export const UserEditDialog = ({ user, open, onOpenChange, onUserUpdate }: UserE
           <div className="grid grid-cols-4 items-center gap-4">
             <Label className="text-right">Created</Label>
             <div className="col-span-3">
-              {format(new Date(user.createdDate), 'MMM d, yyyy')}
+              {editedUser.createdDate ? format(new Date(editedUser.createdDate), 'MMM d, yyyy') : 'Unknown'}
             </div>
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
             <Label className="text-right">Last Login</Label>
             <div className="col-span-3">
-              {user.lastLogin 
-                ? format(new Date(user.lastLogin), 'MMM d, yyyy h:mm a')
+              {editedUser.lastLogin 
+                ? format(new Date(editedUser.lastLogin), 'MMM d, yyyy h:mm a')
                 : 'Never logged in'}
             </div>
           </div>

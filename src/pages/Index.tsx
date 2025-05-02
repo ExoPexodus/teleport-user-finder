@@ -30,6 +30,9 @@ const Index = () => {
 
   const handleUserUpdate = async (updatedUser: User) => {
     try {
+      // Log the user we're trying to update for debugging
+      console.log('Updating user:', updatedUser);
+      
       await updateUser(updatedUser);
       refetch(); // Refresh data after update
       
@@ -38,6 +41,7 @@ const Index = () => {
         description: `${updatedUser.name}'s information has been updated successfully.`
       });
     } catch (error) {
+      console.error('Update error:', error);
       toast({
         title: "Update failed",
         description: "Failed to update user information. Please try again.",

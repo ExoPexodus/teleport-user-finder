@@ -15,7 +15,8 @@ export const UserList = ({ users, onUserUpdate }: UserListProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleUserClick = (user: User) => {
-    setSelectedUser(user);
+    // Create a deep copy of the user to avoid reference issues
+    setSelectedUser(JSON.parse(JSON.stringify(user)));
     setDialogOpen(true);
   };
 
