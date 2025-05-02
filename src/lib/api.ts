@@ -10,7 +10,8 @@ const mockUsers: User[] = [
     createdDate: new Date('2023-01-15').toISOString(),
     lastLogin: new Date('2023-05-01T14:30:00').toISOString(),
     status: 'active',
-    manager: 'david'
+    manager: 'david',
+    portal: 'kocharsoft'
   },
   {
     id: '2',
@@ -19,7 +20,8 @@ const mockUsers: User[] = [
     createdDate: new Date('2023-02-20').toISOString(),
     lastLogin: new Date('2023-05-02T09:15:00').toISOString(),
     status: 'active',
-    manager: 'fiona'
+    manager: 'fiona',
+    portal: 'igzy'
   },
   {
     id: '3',
@@ -28,7 +30,8 @@ const mockUsers: User[] = [
     createdDate: new Date('2023-03-05').toISOString(),
     lastLogin: new Date('2023-04-28T16:45:00').toISOString(),
     status: 'active',
-    manager: 'david'
+    manager: 'david',
+    portal: 'maxicus'
   },
   {
     id: '4',
@@ -37,7 +40,8 @@ const mockUsers: User[] = [
     createdDate: new Date('2023-01-10').toISOString(),
     lastLogin: new Date('2023-04-30T11:20:00').toISOString(),
     status: 'active',
-    manager: 'fiona'
+    manager: 'fiona',
+    portal: 'kocharsoft'
   },
   {
     id: '5',
@@ -46,7 +50,8 @@ const mockUsers: User[] = [
     createdDate: new Date('2023-04-12').toISOString(),
     lastLogin: null,
     status: 'pending',
-    manager: null
+    manager: null,
+    portal: 'igzy'
   },
   {
     id: '6',
@@ -55,7 +60,8 @@ const mockUsers: User[] = [
     createdDate: new Date('2022-11-08').toISOString(),
     lastLogin: new Date('2023-05-01T08:45:00').toISOString(),
     status: 'active',
-    manager: null
+    manager: null,
+    portal: 'maxicus'
   },
   {
     id: '7',
@@ -64,7 +70,8 @@ const mockUsers: User[] = [
     createdDate: new Date('2023-02-15').toISOString(),
     lastLogin: new Date('2023-04-15T13:30:00').toISOString(),
     status: 'inactive',
-    manager: 'david'
+    manager: 'david',
+    portal: 'kocharsoft'
   }
 ];
 

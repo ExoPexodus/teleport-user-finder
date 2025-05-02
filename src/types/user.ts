@@ -7,4 +7,5 @@ export interface User {
   lastLogin: string | null;
   status: 'active' | 'inactive' | 'pending';
   manager?: string | null;
+  portal: 'kocharsoft' | 'igzy' | 'maxicus' | null;
 }

@@ -74,6 +74,26 @@ export const UserEditDialog = ({ user, open, onOpenChange, onUserUpdate }: UserE
               placeholder="Enter manager name"
             />
           </div>
+          
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="portal" className="text-right">Portal</Label>
+            <div className="col-span-3 flex gap-2">
+              {(['kocharsoft', 'igzy', 'maxicus'] as const).map((portal) => (
+                <Badge 
+                  key={portal}
+                  className={`cursor-pointer ${editedUser.portal === portal ? 
+                    (portal === 'kocharsoft' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 
+                    portal === 'igzy' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 
+                    'bg-orange-500/20 text-orange-400 border-orange-500/30') : 
+                    'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}
+                  onClick={() => setEditedUser(prev => ({ ...prev, portal }))}
+                  variant="outline"
+                >
+                  {portal}
+                </Badge>
+              ))}
+            </div>
+          </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
             <Label className="text-right">Roles</Label>

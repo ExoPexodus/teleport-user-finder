@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Database, Download, ArrowLeft, ArrowRight, UserSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,7 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
 
   const downloadCSV = () => {
     // Create CSV content
-    const headers = ["ID", "Name", "Roles", "Status", "Created Date", "Last Login", "Manager"];
+    const headers = ["ID", "Name", "Roles", "Status", "Created Date", "Last Login", "Manager", "Portal"];
     const userRows = users.map(user => [
       user.id,
       user.name,
@@ -43,7 +44,8 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
       user.status,
       new Date(user.createdDate).toLocaleDateString(),
       user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never",
-      user.manager || "None"
+      user.manager || "None",
+      user.portal || "None"
     ]);
     
     const csvContent = [

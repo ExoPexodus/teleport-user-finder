@@ -4,7 +4,7 @@ import { User } from '@/types/user';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { UserCheck, Clock, Shield, UserCog } from 'lucide-react';
+import { UserCheck, Clock, Shield, UserCog, Globe } from 'lucide-react';
 
 interface UserCardProps {
   user: User;
@@ -17,6 +17,15 @@ export const UserCard = ({ user, onClick }: UserCardProps) => {
       case 'active': return 'bg-green-500/20 text-green-400 border-green-500/30';
       case 'inactive': return 'bg-red-500/20 text-red-400 border-red-500/30';
       case 'pending': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    }
+  };
+
+  const getPortalColor = (portal: string | null) => {
+    switch (portal) {
+      case 'kocharsoft': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'igzy': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+      case 'maxicus': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
   };
@@ -48,6 +57,14 @@ export const UserCard = ({ user, onClick }: UserCardProps) => {
                 </Badge>
               ))}
             </div>
+          </div>
+          
+          <div className="flex items-center gap-2 text-sm">
+            <Globe className="h-4 w-4 text-teleport-blue" />
+            <span className="font-semibold">Portal:</span>
+            <Badge variant="outline" className={`text-xs ${getPortalColor(user.portal)}`}>
+              {user.portal || 'None'}
+            </Badge>
           </div>
           
           <div className="flex items-center gap-2 text-sm">
