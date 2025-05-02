@@ -118,11 +118,11 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
                   >
                     <Database size={20} className="mr-2" />
                     <span className={`transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
-                      Database
+                      Fetch User Data
                     </span>
                   </Button>
                 </TooltipTrigger>
-                {!isOpen && <TooltipContent side="right">Database</TooltipContent>}
+                {!isOpen && <TooltipContent side="right">Fetch User Data</TooltipContent>}
               </Tooltip>
             </li>
             <li>
@@ -136,11 +136,11 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
                   >
                     <Download size={20} className="mr-2" />
                     <span className={`transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
-                      Export Data
+                      Download User Data
                     </span>
                   </Button>
                 </TooltipTrigger>
-                {!isOpen && <TooltipContent side="right">Export Data</TooltipContent>}
+                {!isOpen && <TooltipContent side="right">Download User Data</TooltipContent>}
               </Tooltip>
             </li>
           </ul>
