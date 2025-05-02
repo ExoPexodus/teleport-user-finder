@@ -201,7 +201,7 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
           </DialogHeader>
           <div className="py-4">
             <p className="text-gray-300 mb-4">Choose which portal to fetch user data from:</p>
-            <Select onValueChange={setSelectedPortal} value={selectedPortal || undefined}>
+            <Select onValueChange={setSelectedPortal} value={selectedPortal || "none"}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a portal" />
               </SelectTrigger>
@@ -209,6 +209,7 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
                 <SelectItem value="kocharsoft">Kocharsoft</SelectItem>
                 <SelectItem value="igzy">Igzy</SelectItem>
                 <SelectItem value="maxicus">Maxicus</SelectItem>
+                <SelectItem value="none">All Portals</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -216,7 +217,6 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
             <Button variant="outline" onClick={() => setPortalDialogOpen(false)}>Cancel</Button>
             <Button 
               onClick={refreshData} 
-              disabled={!selectedPortal}
               className="bg-teleport-blue hover:bg-teleport-blue/80"
             >
               Fetch Users

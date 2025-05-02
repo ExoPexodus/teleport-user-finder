@@ -31,14 +31,14 @@ export const UserFilter = ({
   
   // Extract unique portals from users
   const portalOptions: FilterOption[] = [
-    { value: '', label: 'All Portals' },
+    { value: 'all', label: 'All Portals' },
     ...Array.from(new Set(users.map(user => user.portal).filter(Boolean)))
       .map(portal => ({ value: portal as string, label: portal as string }))
   ];
   
   // Extract unique managers from users
   const managerOptions: FilterOption[] = [
-    { value: '', label: 'All Managers' },
+    { value: 'all', label: 'All Managers' },
     ...Array.from(new Set(users.map(user => user.manager).filter(Boolean)))
       .map(manager => ({ value: manager as string, label: manager as string }))
   ];
@@ -48,8 +48,8 @@ export const UserFilter = ({
       <div className="flex-1 space-y-2">
         <Label className="text-white">Filter by Portal</Label>
         <Select 
-          value={selectedPortal || ''} 
-          onValueChange={(value) => onFilterChange('portal', value)}
+          value={selectedPortal || 'all'} 
+          onValueChange={(value) => onFilterChange('portal', value === 'all' ? '' : value)}
         >
           <SelectTrigger className="bg-teleport-darkgray text-white border-slate-700">
             <SelectValue placeholder="Select Portal" />
@@ -67,8 +67,8 @@ export const UserFilter = ({
       <div className="flex-1 space-y-2">
         <Label className="text-white">Filter by Manager</Label>
         <Select 
-          value={selectedManager || ''} 
-          onValueChange={(value) => onFilterChange('manager', value)}
+          value={selectedManager || 'all'} 
+          onValueChange={(value) => onFilterChange('manager', value === 'all' ? '' : value)}
         >
           <SelectTrigger className="bg-teleport-darkgray text-white border-slate-700">
             <SelectValue placeholder="Select Manager" />
