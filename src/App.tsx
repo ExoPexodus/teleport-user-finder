@@ -8,7 +8,6 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// Remove direct usage of TooltipProvider from here
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <Toaster />

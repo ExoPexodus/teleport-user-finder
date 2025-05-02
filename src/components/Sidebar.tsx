@@ -24,26 +24,30 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
     queryClient.invalidateQueries({ queryKey: ['users'] });
   };
 
+  const handleToggle = () => {
+    setIsOpen(!isOpen);
+  };
+
   const totalUsers = users.length;
   const activeUsers = users.filter(user => user.status === 'active').length;
   const pendingUsers = users.filter(user => user.status === 'pending').length;
   
   return (
-    <div className={`fixed left-0 top-0 h-full bg-gray-900 text-white transition-width duration-300 ease-in-out overflow-hidden z-10 ${isOpen ? 'w-64' : 'w-16'}`}>
-      <div className="p-4 flex justify-between items-center border-b border-gray-800">
-        <h2 className={`text-xl font-bold transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0'}`}>Teleport</h2>
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={() => setIsOpen(!isOpen)}
-          className="text-white hover:bg-gray-700"
-        >
-          {isOpen ? <ArrowLeft size={20} /> : <ArrowRight size={20} />}
-        </Button>
-      </div>
-      
-      <div className="p-4">
-        <TooltipProvider>
+    <TooltipProvider>
+      <div className={`fixed left-0 top-0 h-full bg-gray-900 text-white transition-width duration-300 ease-in-out overflow-hidden z-10 ${isOpen ? 'w-64' : 'w-16'}`}>
+        <div className="p-4 flex justify-between items-center border-b border-gray-800">
+          <h2 className={`text-xl font-bold transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0'}`}>Teleport</h2>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={handleToggle}
+            className="text-white hover:bg-gray-700"
+          >
+            {isOpen ? <ArrowLeft size={20} /> : <ArrowRight size={20} />}
+          </Button>
+        </div>
+        
+        <div className="p-4">
           <ul className="space-y-4">
             <li>
               <Tooltip>
@@ -98,27 +102,27 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
               </Tooltip>
             </li>
           </ul>
-        </TooltipProvider>
-      </div>
-      
-      {isOpen && (
-        <div className="absolute bottom-0 left-0 w-full p-4 bg-gray-800">
-          <div className="text-sm text-gray-400">
-            <div className="flex justify-between mb-1">
-              <span>Total Users:</span>
-              <span>{totalUsers}</span>
-            </div>
-            <div className="flex justify-between mb-1">
-              <span>Active:</span>
-              <span>{activeUsers}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Pending:</span>
-              <span>{pendingUsers}</span>
+        </div>
+        
+        {isOpen && (
+          <div className="absolute bottom-0 left-0 w-full p-4 bg-gray-800">
+            <div className="text-sm text-gray-400">
+              <div className="flex justify-between mb-1">
+                <span>Total Users:</span>
+                <span>{totalUsers}</span>
+              </div>
+              <div className="flex justify-between mb-1">
+                <span>Active:</span>
+                <span>{activeUsers}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Pending:</span>
+                <span>{pendingUsers}</span>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </TooltipProvider>
   );
 };

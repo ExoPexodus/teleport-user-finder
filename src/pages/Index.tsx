@@ -58,28 +58,26 @@ const Index = () => {
   };
 
   return (
-    <TooltipProvider>
-      <div className="min-h-screen bg-teleport-darkgray">
-        <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} users={getAllUsers()} />
-        <div className={`transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
-          <Header />
-          <main className="container px-4 py-8">
-            <div className="mb-8 bg-teleport-gray rounded-lg p-6 shadow-lg border border-slate-800">
-              <h1 className="text-2xl font-bold text-white mb-6">User Search</h1>
-              <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-            </div>
-            
-            {isLoading ? (
-              <Loader />
-            ) : error ? (
-              <ErrorDisplay message="Failed to load users. Please try again later." />
-            ) : (
-              <UserList users={filteredUsers} onUserUpdate={handleUserUpdate} />
-            )}
-          </main>
-        </div>
+    <div className="min-h-screen bg-teleport-darkgray">
+      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} users={getAllUsers()} />
+      <div className={`transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+        <Header />
+        <main className="container px-4 py-8">
+          <div className="mb-8 bg-teleport-gray rounded-lg p-6 shadow-lg border border-slate-800">
+            <h1 className="text-2xl font-bold text-white mb-6">User Search</h1>
+            <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+          </div>
+          
+          {isLoading ? (
+            <Loader />
+          ) : error ? (
+            <ErrorDisplay message="Failed to load users. Please try again later." />
+          ) : (
+            <UserList users={filteredUsers} onUserUpdate={handleUserUpdate} />
+          )}
+        </main>
       </div>
-    </TooltipProvider>
+    </div>
   );
 };
 
