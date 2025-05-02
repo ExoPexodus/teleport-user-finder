@@ -1,0 +1,50 @@
+
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - teleport-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=teleport
+      - DB_USER=teleport
+      - DB_PASSWORD=teleport123
+      - DEBUG=False
+    depends_on:
+      - postgres
+    networks:
+      - teleport-network
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=teleport
+      - POSTGRES_USER=teleport
+      - POSTGRES_PASSWORD=teleport123
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - teleport-network
+
+networks:
+  teleport-network:
+    driver: bridge
+
+volumes:
+  postgres-data:

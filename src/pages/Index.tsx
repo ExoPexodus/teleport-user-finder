@@ -5,61 +5,50 @@ import { Header } from '@/components/Header';
 import { SearchBar } from '@/components/SearchBar';
 import { Sidebar } from '@/components/Sidebar';
 import { useQuery } from '@tanstack/react-query';
-import { fetchUsers } from '@/lib/api';
+import { fetchUsers, updateUser } from '@/lib/api';
 import { Loader } from '@/components/Loader';
 import { ErrorDisplay } from '@/components/ErrorDisplay';
 import { User } from '@/types/user';
 import { useToast } from '@/hooks/use-toast';
-import { TooltipProvider } from '@/components/ui/tooltip';
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedPortal, setSelectedPortal] = useState<string | null>(null);
   const { toast } = useToast();
   
   const { data: users, isLoading, error, refetch } = useQuery({
-    queryKey: ['users'],
-    queryFn: fetchUsers,
+    queryKey: ['users', selectedPortal],
+    queryFn: () => fetchUsers(selectedPortal || undefined),
   });
 
-  const [modifiedUsers, setModifiedUsers] = useState<User[]>([]);
-  
-  const getAllUsers = () => {
-    if (!users) return [];
-    
-    // Combine original users with any modified ones
-    return users.map(originalUser => {
-      const modifiedUser = modifiedUsers.find(u => u.id === originalUser.id);
-      return modifiedUser || originalUser;
-    });
-  };
-
-  const filteredUsers = getAllUsers().filter(user => 
+  const filteredUsers = (users || []).filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.roles.some(role => role.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (user.manager && user.manager.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleUserUpdate = (updatedUser: User) => {
-    setModifiedUsers(prev => {
-      // Replace if exists, otherwise add
-      const exists = prev.some(user => user.id === updatedUser.id);
-      if (exists) {
-        return prev.map(user => user.id === updatedUser.id ? updatedUser : user);
-      } else {
-        return [...prev, updatedUser];
-      }
-    });
-    
-    toast({
-      title: "User updated",
-      description: `${updatedUser.name}'s information has been updated successfully.`
-    });
+  const handleUserUpdate = async (updatedUser: User) => {
+    try {
+      await updateUser(updatedUser);
+      refetch(); // Refresh data after update
+      
+      toast({
+        title: "User updated",
+        description: `${updatedUser.name}'s information has been updated successfully.`
+      });
+    } catch (error) {
+      toast({
+        title: "Update failed",
+        description: "Failed to update user information. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
     <div className="min-h-screen bg-teleport-darkgray">
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} users={getAllUsers()} />
+      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} users={users || []} />
       <div className={`transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <Header />
         <main className="container px-4 py-8">

@@ -39,7 +39,11 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
   const [selectedPortal, setSelectedPortal] = useState<string | null>(null);
   
   const refreshData = () => {
-    queryClient.invalidateQueries({ queryKey: ['users'] });
+    // Pass the selected portal to invalidate query
+    queryClient.invalidateQueries({ 
+      queryKey: ['users', selectedPortal || null] 
+    });
+    
     toast({
       title: "Data refreshed",
       description: `User data has been successfully refreshed${selectedPortal ? ` from ${selectedPortal}` : ''}.`

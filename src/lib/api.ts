@@ -1,7 +1,53 @@
-
 import { User } from '@/types/user';
 
-// Mock data to simulate Teleport API response
+// Base API URL
+const API_URL = process.env.NODE_ENV === 'production' 
+  ? '/api' 
+  : 'http://localhost:5000/api';
+
+// Function to fetch users from the backend
+export const fetchUsers = async (portal?: string): Promise<User[]> => {
+  try {
+    const url = portal 
+      ? `${API_URL}/users?portal=${portal}`
+      : `${API_URL}/users`;
+      
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    throw new Error('Failed to fetch users from API');
+  }
+};
+
+// Function to update a user
+export const updateUser = async (user: User): Promise<void> => {
+  try {
+    const response = await fetch(`${API_URL}/users/${user.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(user),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Error updating user:', error);
+    throw new Error('Failed to update user');
+  }
+};
+
+// Keeping mock data commented for reference or fallback
+/*
 const mockUsers: User[] = [
   {
     id: '1',
@@ -74,17 +120,4 @@ const mockUsers: User[] = [
     portal: 'kocharsoft'
   }
 ];
-
-// Function to simulate API call to Teleport to get users
-export const fetchUsers = async (): Promise<User[]> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Simulate success (90% of the time)
-  if (Math.random() > 0.1) {
-    return mockUsers;
-  }
-  
-  // Simulate failure (10% of the time)
-  throw new Error('Failed to fetch users from Teleport API');
-};
+*/

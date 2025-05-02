@@ -1,73 +1,91 @@
-# Welcome to your Lovable project
 
-## Project info
+# Teleport User Management
 
-**URL**: https://lovable.dev/projects/fedc9e4e-dbc5-4b0a-b7db-060c26129d39
+A full-stack application for managing users across multiple Teleport instances.
 
-## How can I edit this code?
+## Architecture
 
-There are several ways of editing your application.
+This application consists of three main components:
 
-**Use Lovable**
+1. **Frontend**: React application with Typescript and Tailwind CSS
+2. **Backend**: Python Flask API
+3. **Database**: PostgreSQL for data storage
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/fedc9e4e-dbc5-4b0a-b7db-060c26129d39) and start prompting.
+## Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Using Docker (Recommended)
 
-**Use your preferred IDE**
+The easiest way to run this application is using Docker Compose:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+```bash
+# Build and start all services
+docker-compose up -d
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+# Check service status
+docker-compose ps
 
-Follow these steps:
+# View logs
+docker-compose logs -f
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+The application will be available at http://localhost
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Development Setup
 
-# Step 3: Install the necessary dependencies.
-npm i
+#### Frontend
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+#### Backend
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+# Navigate to backend directory
+cd backend
 
-**Use GitHub Codespaces**
+# Create virtual environment
+python -m venv venv
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
 
-## What technologies are used for this project?
+# Install dependencies
+pip install -r requirements.txt
 
-This project is built with:
+# Start Flask server
+flask run
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+#### Database
 
-## How can I deploy this project?
+For development, you can run PostgreSQL using Docker:
 
-Simply open [Lovable](https://lovable.dev/projects/fedc9e4e-dbc5-4b0a-b7db-060c26129d39) and click on Share -> Publish.
+```bash
+docker run -d --name teleport-postgres -e POSTGRES_DB=teleport -e POSTGRES_USER=teleport -e POSTGRES_PASSWORD=teleport123 -p 5432:5432 -v $(pwd)/backend/init.sql:/docker-entrypoint-initdb.d/init.sql postgres:15
+```
 
-## Can I connect a custom domain to my Lovable project?
+## API Endpoints
 
-Yes, you can!
+- `GET /api/users` - Get all users
+- `GET /api/users?portal=kocharsoft` - Get users from a specific portal
+- `PUT /api/users/:id` - Update a specific user
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Environment Variables
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### Frontend
+- `NODE_ENV` - Set to 'production' for production builds
+
+### Backend
+- `DB_HOST` - PostgreSQL host
+- `DB_NAME` - PostgreSQL database name
+- `DB_USER` - PostgreSQL username
+- `DB_PASSWORD` - PostgreSQL password
+- `DEBUG` - Set to 'True' for development mode
