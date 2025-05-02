@@ -37,7 +37,7 @@ export const UserCard = ({ user }: UserCardProps) => {
             <span className="font-semibold">Roles:</span>
             <div className="flex flex-wrap gap-1">
               {user.roles.map(role => (
-                <Badge key={role} variant="outline" className="text-xs bg-teleport-blue/20 text-teleport-lightblue border-teleport-blue/30">
+                <Badge key={role} variant="outline" className="text-xs bg-indigo-900/50 text-indigo-300 border-indigo-700">
                   {role}
                 </Badge>
               ))}
