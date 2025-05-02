@@ -22,11 +22,11 @@ const Index = () => {
   ) || [];
 
   return (
-    <div className="min-h-screen bg-teleport-gray dark:bg-slate-900">
+    <div className="min-h-screen bg-teleport-darkgray">
       <Header />
       <main className="container px-4 py-8">
-        <h1 className="text-3xl font-bold text-white mb-6">Teleport User Finder</h1>
-        <div className="mb-8">
+        <div className="mb-8 bg-teleport-gray rounded-lg p-6 shadow-lg border border-slate-800">
+          <h1 className="text-2xl font-bold text-white mb-6">User Search</h1>
           <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
         </div>
         

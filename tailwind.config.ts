@@ -26,11 +26,11 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				teleport: {
-					blue: '#7683E4',
-					lightblue: '#A1ABFF',
-					darkblue: '#4557D5',
-					gray: '#1A1F2C',
-					darkgray: '#151922'
+					blue: '#6366F1',
+					lightblue: '#818CF8',
+					darkblue: '#4F46E5',
+					gray: '#1E1E2A',
+					darkgray: '#13131A'
 				},
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
