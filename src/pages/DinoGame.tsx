@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
+import { Gamepad2 } from 'lucide-react';
 
 // Game constants
 const GRAVITY = 0.6;
@@ -220,7 +220,10 @@ const DinoGame = () => {
         <Header />
         <main className="container px-4 py-8">
           <div className="mb-8 bg-teleport-gray rounded-lg p-6 shadow-lg border border-slate-800">
-            <h1 className="text-2xl font-bold text-white mb-2">Teleport Dino Game</h1>
+            <div className="flex items-center gap-3 mb-2">
+              <Gamepad2 className="h-6 w-6 text-indigo-400" />
+              <h1 className="text-2xl font-bold text-white">Teleport Dino Game</h1>
+            </div>
             <p className="text-gray-300 mb-4">Press Space or Up Arrow to jump. Avoid the cacti!</p>
             
             <div className="flex justify-center">

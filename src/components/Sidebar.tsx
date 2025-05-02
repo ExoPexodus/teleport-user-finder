@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Database, Download, ArrowLeft, ArrowRight, UserSearch, Dinosaur } from 'lucide-react';
+import { Database, Download, ArrowLeft, ArrowRight, UserSearch, Gamepad2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -128,7 +128,7 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
           asChild
         >
           <Link to="/dino-game">
-            <Dinosaur className="h-5 w-5 text-indigo-400" />
+            <Gamepad2 className="h-5 w-5 text-indigo-400" />
             {isOpen && <span>Dino Game</span>}
           </Link>
         </Button>
