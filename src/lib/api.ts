@@ -1,12 +1,13 @@
 
 import { User } from '@/types/user';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Using relative URL to make requests go through nginx proxy
+const API_URL = '/api';
 
 export async function fetchUsers(portal?: string): Promise<User[]> {
   const url = portal 
-    ? `${API_URL}/api/users?portal=${encodeURIComponent(portal)}` 
-    : `${API_URL}/api/users`;
+    ? `${API_URL}/users?portal=${encodeURIComponent(portal)}` 
+    : `${API_URL}/users`;
   
   const response = await fetch(url);
   if (!response.ok) {
@@ -16,7 +17,7 @@ export async function fetchUsers(portal?: string): Promise<User[]> {
 }
 
 export async function updateUser(user: User): Promise<{ success: boolean }> {
-  const response = await fetch(`${API_URL}/api/users/${user.id}`, {
+  const response = await fetch(`${API_URL}/users/${user.id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -32,7 +33,7 @@ export async function updateUser(user: User): Promise<{ success: boolean }> {
 }
 
 export async function deleteUsers(userIds: string[]): Promise<{ success: boolean }> {
-  const response = await fetch(`${API_URL}/api/users`, {
+  const response = await fetch(`${API_URL}/users`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
