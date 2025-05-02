@@ -1,11 +1,15 @@
 
 import React from 'react';
-import { Database, Download, ArrowLeft, ArrowRight, UserSearch } from 'lucide-react';
+import { Database, Download, ArrowLeft, ArrowRight, UserSearch, Gamepad2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
 import { User } from '@/types/user';
-import { useNavigate } from 'react-router-dom';
-import { toast } from '@/hooks/use-toast';
+import { 
+  Tooltip, 
+  TooltipContent, 
+  TooltipTrigger,
+  TooltipProvider 
+} from '@/components/ui/tooltip';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -15,104 +19,106 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   
-  const handleFetchUsers = () => {
+  const refreshData = () => {
     queryClient.invalidateQueries({ queryKey: ['users'] });
-    toast({
-      title: "Refreshing Data",
-      description: "User data is being refreshed from the server.",
-    });
-  };
-  
-  const handleExportCSV = () => {
-    if (!users.length) {
-      toast({
-        title: "Export Failed",
-        description: "No users available to export.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const headers = ['ID', 'Name', 'Roles', 'Created Date', 'Last Login', 'Status', 'Manager'];
-    const csvData = users.map((user) => [
-      user.id,
-      user.name,
-      user.roles.join('; '),
-      new Date(user.createdDate).toLocaleDateString(),
-      user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never',
-      user.status,
-      user.manager || 'None'
-    ]);
-    
-    // Convert to CSV
-    const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-    
-    // Create download link
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `teleport_users_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast({
-      title: "Export Successful",
-      description: `Exported ${users.length} users to CSV file.`,
-    });
   };
 
+  const totalUsers = users.length;
+  const activeUsers = users.filter(user => user.status === 'active').length;
+  const pendingUsers = users.filter(user => user.status === 'pending').length;
+  
   return (
-    <div 
-      className={`fixed top-0 left-0 h-full bg-teleport-gray border-r border-slate-800 
-        transition-all duration-300 z-10 shadow-xl flex flex-col
-        ${isOpen ? 'w-64' : 'w-16'}`}
-    >
-      <div className="flex justify-end p-2">
+    <div className={`fixed left-0 top-0 h-full bg-gray-900 text-white transition-width duration-300 ease-in-out overflow-hidden z-10 ${isOpen ? 'w-64' : 'w-16'}`}>
+      <div className="p-4 flex justify-between items-center border-b border-gray-800">
+        <h2 className={`text-xl font-bold transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0'}`}>Teleport</h2>
         <Button 
           variant="ghost" 
-          size="icon" 
+          size="icon"
           onClick={() => setIsOpen(!isOpen)}
+          className="text-white hover:bg-gray-700"
         >
-          {isOpen ? <ArrowLeft className="h-5 w-5" /> : <ArrowRight className="h-5 w-5" />}
+          {isOpen ? <ArrowLeft size={20} /> : <ArrowRight size={20} />}
         </Button>
       </div>
       
-      <div className="flex-grow flex flex-col p-3 gap-2 overflow-y-auto">
-        <Button 
-          variant="ghost" 
-          className={`flex items-center justify-${isOpen ? 'start' : 'center'} w-full px-3 py-2`}
-          onClick={() => navigate('/')}
-        >
-          <UserSearch className="h-5 w-5 mr-2" />
-          {isOpen && <span>User Search</span>}
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          className={`flex items-center justify-${isOpen ? 'start' : 'center'} w-full px-3 py-2`}
-          onClick={handleFetchUsers}
-        >
-          <Database className="h-5 w-5 mr-2" />
-          {isOpen && <span>Fetch Users</span>}
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          className={`flex items-center justify-${isOpen ? 'start' : 'center'} w-full px-3 py-2`}
-          onClick={handleExportCSV}
-        >
-          <Download className="h-5 w-5 mr-2" />
-          {isOpen && <span>Export CSV</span>}
-        </Button>
+      <div className="p-4">
+        <TooltipProvider>
+          <ul className="space-y-4">
+            <li>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size={isOpen ? "default" : "icon"} 
+                    className={`w-full justify-start text-white hover:bg-gray-700 ${!isOpen && 'p-2'}`}
+                  >
+                    <UserSearch size={20} className="mr-2" />
+                    <span className={`transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
+                      Users
+                    </span>
+                  </Button>
+                </TooltipTrigger>
+                {!isOpen && <TooltipContent side="right">Users</TooltipContent>}
+              </Tooltip>
+            </li>
+            <li>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size={isOpen ? "default" : "icon"} 
+                    className={`w-full justify-start text-white hover:bg-gray-700 ${!isOpen && 'p-2'}`}
+                  >
+                    <Database size={20} className="mr-2" />
+                    <span className={`transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
+                      Databases
+                    </span>
+                  </Button>
+                </TooltipTrigger>
+                {!isOpen && <TooltipContent side="right">Databases</TooltipContent>}
+              </Tooltip>
+            </li>
+            <li>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size={isOpen ? "default" : "icon"} 
+                    className={`w-full justify-start text-white hover:bg-gray-700 ${!isOpen && 'p-2'}`}
+                    onClick={refreshData}
+                  >
+                    <Download size={20} className="mr-2" />
+                    <span className={`transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
+                      Refresh Data
+                    </span>
+                  </Button>
+                </TooltipTrigger>
+                {!isOpen && <TooltipContent side="right">Refresh Data</TooltipContent>}
+              </Tooltip>
+            </li>
+          </ul>
+        </TooltipProvider>
       </div>
+      
+      {isOpen && (
+        <div className="absolute bottom-0 left-0 w-full p-4 bg-gray-800">
+          <div className="text-sm text-gray-400">
+            <div className="flex justify-between mb-1">
+              <span>Total Users:</span>
+              <span>{totalUsers}</span>
+            </div>
+            <div className="flex justify-between mb-1">
+              <span>Active:</span>
+              <span>{activeUsers}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Pending:</span>
+              <span>{pendingUsers}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
