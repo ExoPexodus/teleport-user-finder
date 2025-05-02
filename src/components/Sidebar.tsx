@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Database, Download, ArrowLeft, ArrowRight, UserSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -77,7 +76,7 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
     <TooltipProvider>
       <div className={`fixed left-0 top-0 h-full bg-gray-900 text-white transition-width duration-300 ease-in-out overflow-hidden z-10 ${isOpen ? 'w-64' : 'w-16'}`}>
         <div className="p-4 flex justify-between items-center border-b border-gray-800">
-          <h2 className={`text-xl font-bold transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0'}`}>Teleport</h2>
+          <div className={`transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0'}`}></div>
           <Button 
             variant="ghost" 
             size="icon"
