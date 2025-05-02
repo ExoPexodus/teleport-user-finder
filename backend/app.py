@@ -6,13 +6,13 @@ from datetime import datetime
 from flask_bcrypt import Bcrypt
 
 # Import utility modules
-from utils.logging_config import setup_logging
-from utils.auth import token_required
-from config import DEBUG, SSH_HOSTS, SSH_PORT, SSH_USER
+from backend.utils.logging_config import setup_logging
+from backend.utils.auth import token_required
+from backend.config import DEBUG, SSH_HOSTS, SSH_PORT, SSH_USER
 
 # Import route modules
-from routes.user_routes import user_routes
-from routes.teleport_routes import teleport_routes
+from backend.routes.user_routes import user_routes
+from backend.routes.teleport_routes import teleport_routes
 
 # Setup logging
 logger = setup_logging()
