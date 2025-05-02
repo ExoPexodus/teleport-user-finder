@@ -1,12 +1,43 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState } from 'react';
+import { UserList } from '@/components/UserList';
+import { Header } from '@/components/Header';
+import { SearchBar } from '@/components/SearchBar';
+import { useQuery } from '@tanstack/react-query';
+import { fetchUsers } from '@/lib/api';
+import { Loader } from '@/components/Loader';
+import { ErrorDisplay } from '@/components/ErrorDisplay';
 
 const Index = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const { data: users, isLoading, error } = useQuery({
+    queryKey: ['users'],
+    queryFn: fetchUsers,
+  });
+
+  const filteredUsers = users?.filter(user => 
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.roles.some(role => role.toLowerCase().includes(searchTerm.toLowerCase()))
+  ) || [];
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-teleport-gray">
+      <Header />
+      <main className="container px-4 py-8">
+        <h1 className="text-3xl font-bold text-teleport-darkblue mb-6">Teleport User Finder</h1>
+        <div className="mb-8">
+          <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+        </div>
+        
+        {isLoading ? (
+          <Loader />
+        ) : error ? (
+          <ErrorDisplay message="Failed to load users. Please try again later." />
+        ) : (
+          <UserList users={filteredUsers} />
+        )}
+      </main>
     </div>
   );
 };
