@@ -6,4 +6,5 @@ export interface User {
   createdDate: string;
   lastLogin: string | null;
   status: 'active' | 'inactive' | 'pending';
+  manager?: string | null;
 }

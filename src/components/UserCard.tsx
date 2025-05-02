@@ -4,13 +4,14 @@ import { User } from '@/types/user';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { UserCheck, Clock, Shield } from 'lucide-react';
+import { UserCheck, Clock, Shield, UserCog } from 'lucide-react';
 
 interface UserCardProps {
   user: User;
+  onClick: () => void;
 }
 
-export const UserCard = ({ user }: UserCardProps) => {
+export const UserCard = ({ user, onClick }: UserCardProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-green-500/20 text-green-400 border-green-500/30';
@@ -21,7 +22,10 @@ export const UserCard = ({ user }: UserCardProps) => {
   };
 
   return (
-    <Card className="overflow-hidden hover:shadow-md transition-shadow duration-200">
+    <Card 
+      className="overflow-hidden hover:shadow-md transition-shadow duration-200 cursor-pointer"
+      onClick={onClick}
+    >
       <CardHeader className="bg-teleport-gray pb-2">
         <div className="flex justify-between items-center">
           <CardTitle className="text-lg font-medium text-white">{user.name}</CardTitle>
@@ -58,6 +62,12 @@ export const UserCard = ({ user }: UserCardProps) => {
                 ? format(new Date(user.lastLogin), 'MMM d, yyyy h:mm a')
                 : 'Never logged in'}
             </span>
+          </div>
+
+          <div className="flex items-center gap-2 text-sm">
+            <UserCog className="h-4 w-4 text-teleport-blue" />
+            <span className="font-semibold">Manager:</span>
+            <span>{user.manager || 'None assigned'}</span>
           </div>
         </div>
       </CardContent>

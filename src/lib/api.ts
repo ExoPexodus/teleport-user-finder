@@ -9,7 +9,8 @@ const mockUsers: User[] = [
     roles: ['admin', 'developer'],
     createdDate: new Date('2023-01-15').toISOString(),
     lastLogin: new Date('2023-05-01T14:30:00').toISOString(),
-    status: 'active'
+    status: 'active',
+    manager: 'david'
   },
   {
     id: '2',
@@ -17,7 +18,8 @@ const mockUsers: User[] = [
     roles: ['developer'],
     createdDate: new Date('2023-02-20').toISOString(),
     lastLogin: new Date('2023-05-02T09:15:00').toISOString(),
-    status: 'active'
+    status: 'active',
+    manager: 'fiona'
   },
   {
     id: '3',
@@ -25,7 +27,8 @@ const mockUsers: User[] = [
     roles: ['support', 'readonly'],
     createdDate: new Date('2023-03-05').toISOString(),
     lastLogin: new Date('2023-04-28T16:45:00').toISOString(),
-    status: 'active'
+    status: 'active',
+    manager: 'david'
   },
   {
     id: '4',
@@ -33,7 +36,8 @@ const mockUsers: User[] = [
     roles: ['developer', 'devops'],
     createdDate: new Date('2023-01-10').toISOString(),
     lastLogin: new Date('2023-04-30T11:20:00').toISOString(),
-    status: 'active'
+    status: 'active',
+    manager: 'fiona'
   },
   {
     id: '5',
@@ -41,7 +45,8 @@ const mockUsers: User[] = [
     roles: ['readonly'],
     createdDate: new Date('2023-04-12').toISOString(),
     lastLogin: null,
-    status: 'pending'
+    status: 'pending',
+    manager: null
   },
   {
     id: '6',
@@ -49,7 +54,8 @@ const mockUsers: User[] = [
     roles: ['admin'],
     createdDate: new Date('2022-11-08').toISOString(),
     lastLogin: new Date('2023-05-01T08:45:00').toISOString(),
-    status: 'active'
+    status: 'active',
+    manager: null
   },
   {
     id: '7',
@@ -57,7 +63,8 @@ const mockUsers: User[] = [
     roles: ['developer', 'support'],
     createdDate: new Date('2023-02-15').toISOString(),
     lastLogin: new Date('2023-04-15T13:30:00').toISOString(),
-    status: 'inactive'
+    status: 'inactive',
+    manager: 'david'
   }
 ];
 
