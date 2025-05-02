@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Database, Download, ArrowLeft, ArrowRight, UserSearch, Gamepad2 } from 'lucide-react';
+import { Database, Download, ArrowLeft, ArrowRight, UserSearch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
 import { User } from '@/types/user';
@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
   TooltipProvider 
 } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -19,13 +20,53 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   const refreshData = () => {
     queryClient.invalidateQueries({ queryKey: ['users'] });
+    toast({
+      title: "Data refreshed",
+      description: "User data has been successfully refreshed from the server."
+    });
   };
 
   const handleToggle = () => {
     setIsOpen(!isOpen);
+  };
+
+  const downloadCSV = () => {
+    // Create CSV content
+    const headers = ["ID", "Name", "Roles", "Status", "Created Date", "Last Login", "Manager"];
+    const userRows = users.map(user => [
+      user.id,
+      user.name,
+      user.roles.join(", "),
+      user.status,
+      new Date(user.createdDate).toLocaleDateString(),
+      user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never",
+      user.manager || "None"
+    ]);
+    
+    const csvContent = [
+      headers.join(","),
+      ...userRows.map(row => row.join(","))
+    ].join("\n");
+    
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `teleport_users_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "CSV Downloaded",
+      description: "User data has been exported to CSV successfully."
+    });
   };
 
   const totalUsers = users.length;
@@ -41,7 +82,7 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
             variant="ghost" 
             size="icon"
             onClick={handleToggle}
-            className="text-white hover:bg-gray-700"
+            className="text-white hover:bg-gray-700 cursor-pointer"
           >
             {isOpen ? <ArrowLeft size={20} /> : <ArrowRight size={20} />}
           </Button>
@@ -55,7 +96,7 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
                   <Button 
                     variant="ghost" 
                     size={isOpen ? "default" : "icon"} 
-                    className={`w-full justify-start text-white hover:bg-gray-700 ${!isOpen && 'p-2'}`}
+                    className={`w-full justify-start text-white hover:bg-gray-700 ${!isOpen && 'p-2'} cursor-pointer`}
                   >
                     <UserSearch size={20} className="mr-2" />
                     <span className={`transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
@@ -72,15 +113,16 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
                   <Button 
                     variant="ghost" 
                     size={isOpen ? "default" : "icon"} 
-                    className={`w-full justify-start text-white hover:bg-gray-700 ${!isOpen && 'p-2'}`}
+                    className={`w-full justify-start text-white hover:bg-gray-700 ${!isOpen && 'p-2'} cursor-pointer`}
+                    onClick={refreshData}
                   >
                     <Database size={20} className="mr-2" />
                     <span className={`transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
-                      Databases
+                      Database
                     </span>
                   </Button>
                 </TooltipTrigger>
-                {!isOpen && <TooltipContent side="right">Databases</TooltipContent>}
+                {!isOpen && <TooltipContent side="right">Database</TooltipContent>}
               </Tooltip>
             </li>
             <li>
@@ -89,16 +131,16 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
                   <Button 
                     variant="ghost" 
                     size={isOpen ? "default" : "icon"} 
-                    className={`w-full justify-start text-white hover:bg-gray-700 ${!isOpen && 'p-2'}`}
-                    onClick={refreshData}
+                    className={`w-full justify-start text-white hover:bg-gray-700 ${!isOpen && 'p-2'} cursor-pointer`}
+                    onClick={downloadCSV}
                   >
                     <Download size={20} className="mr-2" />
                     <span className={`transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
-                      Refresh Data
+                      Export Data
                     </span>
                   </Button>
                 </TooltipTrigger>
-                {!isOpen && <TooltipContent side="right">Refresh Data</TooltipContent>}
+                {!isOpen && <TooltipContent side="right">Export Data</TooltipContent>}
               </Tooltip>
             </li>
           </ul>

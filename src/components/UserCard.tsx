@@ -23,7 +23,9 @@ export const UserCard = ({ user, onClick }: UserCardProps) => {
 
   return (
     <Card 
-      className="overflow-hidden hover:shadow-md transition-all duration-200 cursor-pointer hover:scale-105 hover:shadow-xl hover:border-teleport-blue/50 border-2 border-transparent"
+      className="overflow-hidden transition-all duration-200 cursor-pointer border-2 border-transparent 
+        hover:scale-105 hover:shadow-xl hover:border-teleport-blue/50 hover:bg-teleport-gray/30
+        active:scale-100 active:shadow-md active:border-teleport-blue/70"
       onClick={onClick}
     >
       <CardHeader className="bg-teleport-gray pb-2">
