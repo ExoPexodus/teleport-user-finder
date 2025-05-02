@@ -1,9 +1,10 @@
 
 import React from 'react';
-import { Database, Download, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Database, Download, ArrowLeft, ArrowRight, UserSearch, Dinosaur } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 import { User } from '@/types/user';
 
 interface SidebarProps {
@@ -81,6 +82,20 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
       </div>
 
       <div className="flex flex-col gap-3 p-4">
+        {/* Navigation Links */}
+        <Button
+          variant="outline"
+          className={`flex items-center gap-3 bg-slate-800 text-white hover:bg-slate-700 border-slate-700 ${
+            !isOpen ? 'justify-center px-0' : ''
+          }`}
+          asChild
+        >
+          <Link to="/">
+            <UserSearch className="h-5 w-5 text-indigo-400" />
+            {isOpen && <span>User Search</span>}
+          </Link>
+        </Button>
+
         <Button
           variant="outline"
           className={`flex items-center gap-3 bg-slate-800 text-white hover:bg-slate-700 border-slate-700 ${
@@ -104,12 +119,27 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
         </Button>
       </div>
 
-      {isOpen && (
-        <div className="mt-auto p-4 text-xs text-slate-500 border-t border-slate-800">
-          <p>Teleport User Finder</p>
-          <p>v1.0.0</p>
-        </div>
-      )}
+      <div className="mt-auto p-4 border-t border-slate-800">
+        <Button
+          variant="outline"
+          className={`flex items-center gap-3 bg-slate-800 text-white hover:bg-indigo-600 border-slate-700 w-full ${
+            !isOpen ? 'justify-center px-0' : ''
+          }`}
+          asChild
+        >
+          <Link to="/dino-game">
+            <Dinosaur className="h-5 w-5 text-indigo-400" />
+            {isOpen && <span>Dino Game</span>}
+          </Link>
+        </Button>
+        
+        {isOpen && (
+          <div className="mt-4 text-xs text-slate-500">
+            <p>Teleport User Finder</p>
+            <p>v1.0.0</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
