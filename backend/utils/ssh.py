@@ -1,7 +1,7 @@
 
 import paramiko
 import logging
-from backend.config import SSH_HOSTS, SSH_PORT, SSH_USER, SSH_KEY_PATH
+from config import SSH_HOSTS, SSH_PORT, SSH_USER, SSH_KEY_PATH
 
 def execute_ssh_command(client, command):
     """Execute command via SSH on the specified client."""

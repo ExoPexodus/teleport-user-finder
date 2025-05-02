@@ -1,7 +1,7 @@
 
 from flask import Blueprint, jsonify, request
 import logging
-from backend.utils.db import get_db_connection
+from utils.db import get_db_connection
 import psycopg2.extras
 
 # Create a Blueprint for user routes

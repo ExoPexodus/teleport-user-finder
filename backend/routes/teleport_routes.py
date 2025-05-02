@@ -5,9 +5,9 @@ from flask_bcrypt import Bcrypt
 from datetime import datetime
 import os
 import json
-from backend.utils.auth import token_required, generate_token
-from backend.utils.ssh import execute_ssh_command
-from backend.config import AUTH_USERNAME, AUTH_PASSWORD_HASH
+from utils.auth import token_required, generate_token
+from utils.ssh import execute_ssh_command
+from config import AUTH_USERNAME, AUTH_PASSWORD_HASH
 
 # Create a Blueprint for teleport routes
 teleport_routes = Blueprint('teleport_routes', __name__)

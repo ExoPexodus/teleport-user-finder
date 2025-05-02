@@ -2,7 +2,7 @@
 import psycopg2
 import psycopg2.extras
 import logging
-from backend.config import DB_CONFIG
+from config import DB_CONFIG
 
 def get_db_connection():
     """Create and return a database connection."""

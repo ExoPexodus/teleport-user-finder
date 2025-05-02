@@ -4,7 +4,7 @@ import logging
 from functools import wraps
 from flask import request, jsonify
 from datetime import datetime, timedelta
-from backend.config import SECRET_KEY, AUTH_USERNAME
+from config import SECRET_KEY, AUTH_USERNAME
 
 def token_required(f):
     """Decorator to verify JWT token for protected routes."""
