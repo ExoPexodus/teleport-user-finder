@@ -13,10 +13,10 @@ interface UserCardProps {
 export const UserCard = ({ user }: UserCardProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'inactive': return 'bg-red-100 text-red-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'active': return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'inactive': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case 'pending': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
   };
 
@@ -24,7 +24,7 @@ export const UserCard = ({ user }: UserCardProps) => {
     <Card className="overflow-hidden hover:shadow-md transition-shadow duration-200">
       <CardHeader className="bg-teleport-gray pb-2">
         <div className="flex justify-between items-center">
-          <CardTitle className="text-lg font-medium text-teleport-darkblue">{user.name}</CardTitle>
+          <CardTitle className="text-lg font-medium text-white">{user.name}</CardTitle>
           <Badge className={`${getStatusColor(user.status)}`}>
             {user.status}
           </Badge>
@@ -37,7 +37,7 @@ export const UserCard = ({ user }: UserCardProps) => {
             <span className="font-semibold">Roles:</span>
             <div className="flex flex-wrap gap-1">
               {user.roles.map(role => (
-                <Badge key={role} variant="outline" className="text-xs bg-blue-50">
+                <Badge key={role} variant="outline" className="text-xs bg-teleport-blue/20 text-teleport-lightblue border-teleport-blue/30">
                   {role}
                 </Badge>
               ))}
