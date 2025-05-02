@@ -19,7 +19,7 @@ export const SearchBar = ({ searchTerm, setSearchTerm }: SearchBarProps) => {
         placeholder="Search users by name or role..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        className="pl-10 py-2 bg-white border border-gray-300 rounded-md w-full focus:ring-teleport-blue focus:border-teleport-blue"
+        className="pl-10 py-2 bg-slate-800 border border-slate-700 rounded-md w-full focus:ring-teleport-blue focus:border-teleport-blue text-white"
       />
     </div>
   );

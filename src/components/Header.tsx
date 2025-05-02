@@ -4,7 +4,7 @@ import { Database } from 'lucide-react';
 
 export const Header = () => {
   return (
-    <header className="bg-teleport-blue text-white py-4 px-6 shadow-md">
+    <header className="bg-teleport-darkblue text-white py-4 px-6 shadow-md">
       <div className="container flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Database className="h-6 w-6" />
