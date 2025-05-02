@@ -69,7 +69,7 @@ export const UpdateManagerDialog = ({
       <DialogContent className="sm:max-w-[425px] bg-teleport-gray text-white border-slate-700">
         <DialogHeader>
           <DialogTitle className="text-white">
-            Update Manager for {user?.name}
+            Update Manager for Selected User{user && user.name ? `(s)` : 's'}
           </DialogTitle>
         </DialogHeader>
         

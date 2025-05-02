@@ -34,7 +34,6 @@ export const UserListTable = ({
 }: UserListTableProps) => {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [managerDialogOpen, setManagerDialogOpen] = useState(false);
-  const [selectedUserForManager, setSelectedUserForManager] = useState<User | null>(null);
   const { toast } = useToast();
 
   // Extract all managers from users
@@ -83,20 +82,30 @@ export const UserListTable = ({
     onDeleteSelected(selectedUserIds);
   };
 
-  const handleUpdateManager = (userId: string, manager: string | null) => {
-    if (onManagerUpdate) {
-      onManagerUpdate(userId, manager);
+  const handleManagerUpdateClick = () => {
+    if (selectedUserIds.length === 0) {
       toast({
-        title: "Manager updated",
-        description: `Manager has been successfully updated.`
+        title: "No users selected",
+        description: "Please select at least one user to update manager.",
+        variant: "destructive"
       });
+      return;
     }
+    setManagerDialogOpen(true);
   };
 
-  const openManagerDialog = (e: React.MouseEvent, user: User) => {
-    e.stopPropagation();
-    setSelectedUserForManager(user);
-    setManagerDialogOpen(true);
+  const handleUpdateManager = (userId: string, manager: string | null) => {
+    if (onManagerUpdate) {
+      // Apply the manager update to all selected users
+      selectedUserIds.forEach(id => {
+        onManagerUpdate(id, manager);
+      });
+      
+      toast({
+        title: "Managers updated",
+        description: `Manager has been successfully updated for ${selectedUserIds.length} user(s).`
+      });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -117,6 +126,11 @@ export const UserListTable = ({
     }
   };
 
+  // Find the first selected user to use as a reference for the manager dialog
+  const selectedUser = selectedUserIds.length > 0 
+    ? users.find(user => user.id === selectedUserIds[0]) || null
+    : null;
+
   return (
     <div className="space-y-4">
       {selectedUserIds.length > 0 && (
@@ -132,6 +146,15 @@ export const UserListTable = ({
           >
             <Download className="mr-1 h-4 w-4" />
             Export
+          </Button>
+          <Button 
+            size="sm" 
+            variant="outline"
+            className="text-white border-teleport-blue hover:bg-teleport-blue/20"
+            onClick={handleManagerUpdateClick}
+          >
+            <UserCog className="mr-1 h-4 w-4" />
+            Update Manager
           </Button>
           <Button 
             size="sm" 
@@ -161,7 +184,6 @@ export const UserListTable = ({
               <TableHead className="text-white">Portal</TableHead>
               <TableHead className="text-white">Manager</TableHead>
               <TableHead className="text-white">Created Date</TableHead>
-              <TableHead className="text-white">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -207,17 +229,6 @@ export const UserListTable = ({
                 </TableCell>
                 <TableCell>{user.manager || <span className="text-gray-400">None</span>}</TableCell>
                 <TableCell>{format(new Date(user.createdDate), 'MMM d, yyyy')}</TableCell>
-                <TableCell>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="h-8 w-8 p-0"
-                    onClick={(e) => openManagerDialog(e, user)}
-                  >
-                    <UserCog className="h-4 w-4" />
-                    <span className="sr-only">Update Manager</span>
-                  </Button>
-                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -227,7 +238,7 @@ export const UserListTable = ({
       <UpdateManagerDialog 
         open={managerDialogOpen}
         onOpenChange={setManagerDialogOpen}
-        user={selectedUserForManager}
+        user={selectedUser}
         managers={allManagers}
         onUpdate={handleUpdateManager}
       />
