@@ -73,6 +73,14 @@ export const UserList = ({
     }
   };
 
+  const handleManagerUpdate = (userId: string, manager: string | null) => {
+    const userToUpdate = users.find(u => u.id === userId);
+    if (userToUpdate) {
+      const updatedUser = { ...userToUpdate, manager };
+      onUserUpdate(updatedUser);
+    }
+  };
+
   if (users.length === 0) {
     return (
       <Card className="p-8 text-center">
@@ -99,6 +107,7 @@ export const UserList = ({
           onUserClick={handleUserClick}
           onExportSelected={handleExportSelected}
           onDeleteSelected={handleDeleteSelected}
+          onManagerUpdate={handleManagerUpdate}
         />
       )}
 

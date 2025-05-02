@@ -13,14 +13,16 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Download, Trash2 } from 'lucide-react';
+import { Download, Trash2, UserCog } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { UpdateManagerDialog } from '@/components/UpdateManagerDialog';
 
 interface UserListTableProps {
   users: User[];
   onUserClick: (user: User) => void;
   onExportSelected: (users: User[]) => void;
   onDeleteSelected: (userIds: string[]) => void;
+  onManagerUpdate?: (userId: string, manager: string | null) => void;
 }
 
 export const UserListTable = ({
@@ -28,9 +30,17 @@ export const UserListTable = ({
   onUserClick,
   onExportSelected,
   onDeleteSelected,
+  onManagerUpdate,
 }: UserListTableProps) => {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [managerDialogOpen, setManagerDialogOpen] = useState(false);
+  const [selectedUserForManager, setSelectedUserForManager] = useState<User | null>(null);
   const { toast } = useToast();
+
+  // Extract all managers from users
+  const allManagers = users
+    .map(user => user.manager)
+    .filter((manager): manager is string => Boolean(manager));
 
   const handleSelectUser = (userId: string, isChecked: boolean) => {
     if (isChecked) {
@@ -71,6 +81,22 @@ export const UserListTable = ({
       return;
     }
     onDeleteSelected(selectedUserIds);
+  };
+
+  const handleUpdateManager = (userId: string, manager: string | null) => {
+    if (onManagerUpdate) {
+      onManagerUpdate(userId, manager);
+      toast({
+        title: "Manager updated",
+        description: `Manager has been successfully updated.`
+      });
+    }
+  };
+
+  const openManagerDialog = (e: React.MouseEvent, user: User) => {
+    e.stopPropagation();
+    setSelectedUserForManager(user);
+    setManagerDialogOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -135,6 +161,7 @@ export const UserListTable = ({
               <TableHead className="text-white">Portal</TableHead>
               <TableHead className="text-white">Manager</TableHead>
               <TableHead className="text-white">Created Date</TableHead>
+              <TableHead className="text-white">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -180,11 +207,30 @@ export const UserListTable = ({
                 </TableCell>
                 <TableCell>{user.manager || <span className="text-gray-400">None</span>}</TableCell>
                 <TableCell>{format(new Date(user.createdDate), 'MMM d, yyyy')}</TableCell>
+                <TableCell>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-8 w-8 p-0"
+                    onClick={(e) => openManagerDialog(e, user)}
+                  >
+                    <UserCog className="h-4 w-4" />
+                    <span className="sr-only">Update Manager</span>
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+      
+      <UpdateManagerDialog 
+        open={managerDialogOpen}
+        onOpenChange={setManagerDialogOpen}
+        user={selectedUserForManager}
+        managers={allManagers}
+        onUpdate={handleUpdateManager}
+      />
     </div>
   );
 };
