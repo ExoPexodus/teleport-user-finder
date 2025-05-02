@@ -87,3 +87,37 @@ def update_user(user_id):
     finally:
         cur.close()
         conn.close()
+
+@user_routes.route('/api/users', methods=['DELETE'])
+def delete_users():
+    """Delete multiple users by IDs."""
+    data = request.json
+    user_ids = data.get('ids', [])
+    
+    if not user_ids:
+        return jsonify({"success": False, "message": "No user IDs provided"}), 400
+        
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    try:
+        # Use parameterized query with tuple of IDs
+        placeholders = ','.join(['%s'] * len(user_ids))
+        query = f"DELETE FROM users WHERE id IN ({placeholders}) RETURNING id"
+        
+        cur.execute(query, tuple(user_ids))
+        deleted_ids = [row[0] for row in cur.fetchall()]
+        
+        if deleted_ids:
+            return jsonify({
+                "success": True, 
+                "message": f"{len(deleted_ids)} users deleted successfully", 
+                "deleted_ids": deleted_ids
+            })
+        return jsonify({"success": False, "message": "No users found with the provided IDs"}), 404
+    except Exception as e:
+        logging.error(f"Error deleting users {user_ids}: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
