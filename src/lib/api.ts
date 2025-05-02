@@ -1,7 +1,8 @@
 
 import { User } from '@/types/user';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Use the Docker container name for internal network communication
+const API_URL = import.meta.env.VITE_API_URL || 'http://backend:5000';
 
 export async function fetchUsers(portal?: string): Promise<User[]> {
   const url = portal 
