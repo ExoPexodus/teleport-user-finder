@@ -38,15 +38,23 @@ AUTH_USERNAME = os.environ.get('AUTH_USERNAME')
 AUTH_PASSWORD_HASH = os.environ.get('AUTH_PASSWORD_HASH')
 
 # Load SSH credentials from environment variables
-SSH_HOSTS = json.loads(os.environ.get('SSH_HOSTS', '{}'))
+try:
+    ssh_hosts_str = os.environ.get('SSH_HOSTS', '{"default":"localhost"}')
+    logging.info(f"SSH_HOSTS raw value: {ssh_hosts_str}")
+    SSH_HOSTS = json.loads(ssh_hosts_str)
+except json.JSONDecodeError as e:
+    logging.error(f"Error parsing SSH_HOSTS: {e}. Using default value.")
+    SSH_HOSTS = {"default": "localhost"}
+
 SSH_PORT = int(os.environ.get('SSH_PORT', 22))
 SSH_USER = os.environ.get('SSH_USER')
 SSH_KEY_PATH = os.environ.get('SSH_KEY_PATH')
 
 # Log the SSH configuration (excluding sensitive data)
-logging.info(f"Loaded SSH configuration: port={SSH_PORT}, user={SSH_USER}")
+logging.info(f"Loaded SSH configuration: hosts={SSH_HOSTS}, port={SSH_PORT}, user={SSH_USER}")
 
 def get_db_connection():
+    # ... keep existing code (database connection function)
     conn = psycopg2.connect(
         host=os.environ.get('DB_HOST', 'postgres'),
         database=os.environ.get('DB_NAME', 'teleport'),
@@ -58,6 +66,7 @@ def get_db_connection():
 
 # Auth decorator to verify JWT token
 def token_required(f):
+    # ... keep existing code (JWT token verification decorator)
     @wraps(f)
     def decorated(*args, **kwargs):
         token = request.headers.get('x-access-token')  # Expect token in headers
@@ -79,9 +88,9 @@ def token_required(f):
     return decorated
 
 # User management endpoints
-
 @app.route('/api/users', methods=['GET'])
 def get_users():
+    # ... keep existing code (user listing functionality)
     portal = request.args.get('portal')
     
     conn = get_db_connection()
@@ -126,6 +135,7 @@ def get_users():
 
 @app.route('/api/users/<user_id>', methods=['PUT'])
 def update_user(user_id):
+    # ... keep existing code (user update functionality)
     data = request.json
     
     conn = get_db_connection()
@@ -151,7 +161,6 @@ def update_user(user_id):
     return jsonify({"success": False, "message": "User not found"}), 404
 
 # Teleport API routes
-
 @app.route('/teleport/login', methods=['POST'])
 def login():
     data = request.json
@@ -177,7 +186,12 @@ def login():
 @token_required
 def run_fixed_command():
     data = request.json
+    if not data:
+        return jsonify({'message': 'Missing JSON body'}), 400
+        
     client = data.get('client')
+    if not client:
+        return jsonify({'message': 'Missing client parameter'}), 400
 
     if client not in SSH_HOSTS:
         return jsonify({'message': f"Client {client} not recognized"}), 400
