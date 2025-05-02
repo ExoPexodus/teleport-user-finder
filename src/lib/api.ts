@@ -1,3 +1,4 @@
+
 import { User } from '@/types/user';
 
 // Base API URL
@@ -9,16 +10,20 @@ const API_URL = process.env.NODE_ENV === 'production'
 export const fetchUsers = async (portal?: string): Promise<User[]> => {
   try {
     const url = portal 
-      ? `${API_URL}/users?portal=${portal}`
+      ? `${API_URL}/users?portal=${encodeURIComponent(portal)}`
       : `${API_URL}/users`;
-      
+    
+    console.log(`Fetching users from: ${url}`);
     const response = await fetch(url);
     
     if (!response.ok) {
-      throw new Error(`HTTP error ${response.status}`);
+      const errorText = await response.text();
+      console.error(`API error (${response.status}):`, errorText);
+      throw new Error(`HTTP error ${response.status}: ${errorText}`);
     }
     
     const data = await response.json();
+    console.log('Fetched users data:', data);
     return data;
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -29,7 +34,10 @@ export const fetchUsers = async (portal?: string): Promise<User[]> => {
 // Function to update a user
 export const updateUser = async (user: User): Promise<void> => {
   try {
-    const response = await fetch(`${API_URL}/users/${user.id}`, {
+    const url = `${API_URL}/users/${encodeURIComponent(user.id)}`;
+    console.log(`Updating user at: ${url}`, user);
+    
+    const response = await fetch(url, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -38,8 +46,13 @@ export const updateUser = async (user: User): Promise<void> => {
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP error ${response.status}`);
+      const errorText = await response.text();
+      console.error(`API error (${response.status}):`, errorText);
+      throw new Error(`HTTP error ${response.status}: ${errorText}`);
     }
+    
+    const result = await response.json();
+    console.log('User update result:', result);
   } catch (error) {
     console.error('Error updating user:', error);
     throw new Error('Failed to update user');

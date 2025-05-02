@@ -46,14 +46,16 @@ def get_users():
             user_dict['createdDate'] = user_dict['created_date'].isoformat()
         if user_dict['last_login']:
             user_dict['lastLogin'] = user_dict['last_login'].isoformat()
+        else:
+            user_dict['lastLogin'] = None
         
         # Remove snake_case fields and keep only camelCase for frontend
         result.append({
             'id': user_dict['id'],
             'name': user_dict['name'],
             'roles': user_dict['roles'],
-            'createdDate': user_dict['createdDate'],
-            'lastLogin': user_dict['lastLogin'],
+            'createdDate': user_dict.get('createdDate'),
+            'lastLogin': user_dict.get('lastLogin'),
             'status': user_dict['status'],
             'manager': user_dict['manager'],
             'portal': user_dict['portal']
