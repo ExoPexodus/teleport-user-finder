@@ -47,3 +47,22 @@ export async function deleteUsers(userIds: string[]): Promise<{ success: boolean
   
   return response.json();
 }
+
+export async function fetchUsersFromSSH(client: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch('/teleport/fetch-users', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+    },
+    body: JSON.stringify({ client }),
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to fetch users from SSH');
+  }
+  
+  return response.json();
+}
+
