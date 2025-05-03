@@ -10,7 +10,7 @@ export const Header = () => {
           <div className="bg-teleport-blue p-2 rounded-md">
             <Database className="h-5 w-5" />
           </div>
-          <h2 className="text-xl font-bold text-white">Teleport User Finder</h2>
+          <h2 className="text-xl font-bold text-white">Teleport User Management Portal</h2>
         </div>
         <div className="text-sm text-teleport-lightblue">
           Secure SSH Access Management
