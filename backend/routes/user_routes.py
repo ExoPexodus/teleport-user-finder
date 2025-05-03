@@ -1,7 +1,8 @@
 
 from flask import Blueprint, jsonify, request
 import logging
-from utils.db import get_db_connection
+from utils.db import get_db_session, get_db_connection
+from models.user import User
 import psycopg2.extras
 
 # Create a Blueprint for user routes
@@ -12,81 +13,69 @@ def get_users():
     """Get all users or filter by portal."""
     portal = request.args.get('portal')
     
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    session = get_db_session()
     
     try:
+        query = session.query(User)
         if portal:
-            cur.execute("SELECT * FROM users WHERE portal = %s", (portal,))
-        else:
-            cur.execute("SELECT * FROM users")
+            query = query.filter(User.portal == portal)
             
-        users = cur.fetchall()
+        users = query.all()
         
-        # Convert rows to dictionaries
+        # Convert ORM objects to dictionaries
         result = []
         for user in users:
-            user_dict = dict(user)
-            # Convert roles from string to list
-            user_dict['roles'] = user_dict['roles'].split(',') if user_dict['roles'] else []
-            # Format dates as ISO strings
-            if user_dict['created_date']:
-                user_dict['createdDate'] = user_dict['created_date'].isoformat()
-            if user_dict['last_login']:
-                user_dict['lastLogin'] = user_dict['last_login'].isoformat()
-            else:
-                user_dict['lastLogin'] = None
-            
-            # Remove snake_case fields and keep only camelCase for frontend
-            result.append({
-                'id': user_dict['id'],
-                'name': user_dict['name'],
-                'roles': user_dict['roles'],
-                'createdDate': user_dict.get('createdDate'),
-                'lastLogin': user_dict.get('lastLogin'),
-                'status': user_dict['status'],
-                'manager': user_dict['manager'],
-                'portal': user_dict['portal']
-            })
+            user_dict = {
+                'id': user.id,
+                'name': user.name,
+                'roles': user.roles.split(',') if user.roles else [],
+                'createdDate': user.created_date.isoformat() if user.created_date else None,
+                'lastLogin': user.last_login.isoformat() if user.last_login else None,
+                'status': user.status,
+                'manager': user.manager,
+                'portal': user.portal
+            }
+            result.append(user_dict)
         
         return jsonify(result)
     except Exception as e:
         logging.error(f"Error fetching users: {e}")
         return jsonify({"error": str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        session.close()
 
 @user_routes.route('/api/users/<user_id>', methods=['PUT'])
 def update_user(user_id):
     """Update a user by ID."""
     data = request.json
     
-    conn = get_db_connection()
-    cur = conn.cursor()
+    session = get_db_session()
     
     try:
         # Format roles as comma-separated string
-        roles = ','.join(data['roles']) if data['roles'] else ''
+        roles = ','.join(data['roles']) if data.get('roles') else ''
         
-        cur.execute("""
-            UPDATE users 
-            SET name = %s, roles = %s, status = %s, manager = %s, portal = %s
-            WHERE id = %s
-            RETURNING *
-        """, (data['name'], roles, data['status'], data['manager'], data['portal'], user_id))
+        user = session.query(User).filter_by(id=user_id).first()
         
-        updated = cur.fetchone() is not None
+        if not user:
+            return jsonify({"success": False, "message": "User not found"}), 404
+            
+        # Update user fields
+        user.name = data['name']
+        user.roles = roles
+        user.status = data['status']
+        user.manager = data['manager']
+        user.portal = data['portal']
         
-        if updated:
-            return jsonify({"success": True, "message": "User updated successfully"})
-        return jsonify({"success": False, "message": "User not found"}), 404
+        session.commit()
+        
+        return jsonify({"success": True, "message": "User updated successfully"})
     except Exception as e:
+        session.rollback()
         logging.error(f"Error updating user {user_id}: {e}")
         return jsonify({"error": str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        session.close()
 
 @user_routes.route('/api/users', methods=['DELETE'])
 def delete_users():
@@ -97,27 +86,22 @@ def delete_users():
     if not user_ids:
         return jsonify({"success": False, "message": "No user IDs provided"}), 400
         
-    conn = get_db_connection()
-    cur = conn.cursor()
+    session = get_db_session()
     
     try:
-        # Use parameterized query with tuple of IDs
-        placeholders = ','.join(['%s'] * len(user_ids))
-        query = f"DELETE FROM users WHERE id IN ({placeholders}) RETURNING id"
+        deleted_count = session.query(User).filter(User.id.in_(user_ids)).delete(synchronize_session='fetch')
+        session.commit()
         
-        cur.execute(query, tuple(user_ids))
-        deleted_ids = [row[0] for row in cur.fetchall()]
-        
-        if deleted_ids:
+        if deleted_count > 0:
             return jsonify({
                 "success": True, 
-                "message": f"{len(deleted_ids)} users deleted successfully", 
-                "deleted_ids": deleted_ids
+                "message": f"{deleted_count} users deleted successfully", 
+                "deleted_ids": user_ids
             })
         return jsonify({"success": False, "message": "No users found with the provided IDs"}), 404
     except Exception as e:
+        session.rollback()
         logging.error(f"Error deleting users {user_ids}: {e}")
         return jsonify({"error": str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        session.close()

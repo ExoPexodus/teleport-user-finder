@@ -9,9 +9,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy all backend files
 COPY . .
 
+# Make the run script executable
+RUN chmod +x run.sh
+
 EXPOSE 5000
 
 # Set Python path to include current directory
 ENV PYTHONPATH=/app
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+CMD ["./run.sh"]
