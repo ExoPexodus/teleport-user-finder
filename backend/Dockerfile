@@ -9,8 +9,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy all backend files
 COPY . .
 
-# Make the run script executable
-RUN chmod +x run.sh
+# Make the run script executable and ensure it has Unix line endings
+RUN apt-get update && apt-get install -y dos2unix && \
+    dos2unix run.sh && \
+    chmod +x run.sh && \
+    apt-get remove -y dos2unix && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
 
 EXPOSE 5000
 
