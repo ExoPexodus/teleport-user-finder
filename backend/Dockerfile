@@ -1,25 +1,26 @@
-
 FROM python:3.11-slim
 
 WORKDIR /app
 
+# Install Bash and line-ending tool
+RUN apt-get update \
+    && apt-get install -y bash dos2unix \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all backend files
+# Copy backend files
 COPY . .
 
-# Make the run script executable and ensure it has Unix line endings
-RUN apt-get update && apt-get install -y dos2unix && \
-    dos2unix run.sh && \
-    chmod +x run.sh && \
-    apt-get remove -y dos2unix && \
-    apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
+# Normalize run.sh and make executable
+RUN sed -i '1s/\xEF\xBB\xBF//' run.sh \
+    && dos2unix run.sh \
+    && chmod +x run.sh
 
 EXPOSE 5000
 
-# Set Python path to include current directory
 ENV PYTHONPATH=/app
 
-CMD ["./run.sh"]
+# Use bash explicitly
+CMD ["bash", "./run.sh"]
