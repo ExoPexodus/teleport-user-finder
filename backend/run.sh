@@ -1,5 +1,5 @@
 
-#!/bin/sh
+#!/bin/bash
 
 # Wait for postgres to be ready
 echo "Waiting for Postgres to be ready..."
