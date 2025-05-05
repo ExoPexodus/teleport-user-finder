@@ -10,12 +10,13 @@ import {
 import { User } from '@/types/user';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronDown, ChevronUp, Filter } from 'lucide-react';
+import { ChevronDown, ChevronUp, Filter, Check, Square } from 'lucide-react';
 import { 
   Collapsible, 
   CollapsibleContent, 
   CollapsibleTrigger 
 } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
 
 type FilterOption = {
   value: string;
@@ -31,6 +32,7 @@ interface UserFilterProps {
   includedRoles: string[];
   onRoleExclusionChange: (role: string, excluded: boolean) => void;
   onRoleInclusionChange: (role: string, included: boolean) => void;
+  onSelectAllRoles: (type: 'include' | 'exclude', selected: boolean) => void;
 }
 
 export const UserFilter = ({ 
@@ -41,7 +43,8 @@ export const UserFilter = ({
   excludedRoles,
   includedRoles,
   onRoleExclusionChange,
-  onRoleInclusionChange
+  onRoleInclusionChange,
+  onSelectAllRoles
 }: UserFilterProps) => {
   const [excludeRolesOpen, setExcludeRolesOpen] = useState(false);
   const [includeRolesOpen, setIncludeRolesOpen] = useState(false);
@@ -115,6 +118,24 @@ export const UserFilter = ({
           </CollapsibleTrigger>
         </div>
         <CollapsibleContent className="mt-2">
+          <div className="flex justify-between mb-2">
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              onClick={() => onSelectAllRoles('include', true)}
+              className="text-xs"
+            >
+              <Check size={14} /> Select All
+            </Button>
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              onClick={() => onSelectAllRoles('include', false)}
+              className="text-xs"
+            >
+              <Square size={14} /> Deselect All
+            </Button>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 p-2 max-h-64 overflow-y-auto border border-slate-700 rounded">
             {allRoles.map(role => (
               <div key={`include-${role}`} className="flex items-center space-x-2">
@@ -141,6 +162,24 @@ export const UserFilter = ({
           </CollapsibleTrigger>
         </div>
         <CollapsibleContent className="mt-2">
+          <div className="flex justify-between mb-2">
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              onClick={() => onSelectAllRoles('exclude', true)}
+              className="text-xs"
+            >
+              <Check size={14} /> Select All
+            </Button>
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              onClick={() => onSelectAllRoles('exclude', false)}
+              className="text-xs"
+            >
+              <Square size={14} /> Deselect All
+            </Button>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 p-2 max-h-64 overflow-y-auto border border-slate-700 rounded">
             {allRoles.map(role => (
               <div key={`exclude-${role}`} className="flex items-center space-x-2">

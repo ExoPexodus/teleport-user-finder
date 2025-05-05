@@ -104,6 +104,20 @@ const Index = () => {
     }
   };
 
+  const handleSelectAllRoles = (type: 'include' | 'exclude', selected: boolean) => {
+    if (!allUsers) return;
+    
+    const allAvailableRoles = Array.from(
+      new Set(allUsers.flatMap(user => user.roles))
+    );
+    
+    if (type === 'include') {
+      setIncludedRoles(selected ? allAvailableRoles : []);
+    } else {
+      setExcludedRoles(selected ? allAvailableRoles : []);
+    }
+  };
+
   const handleDeleteUsers = async (userIds: string[]) => {
     try {
       await deleteUsers(userIds);
@@ -148,6 +162,7 @@ const Index = () => {
                   includedRoles={includedRoles}
                   onRoleExclusionChange={handleRoleExclusionChange}
                   onRoleInclusionChange={handleRoleInclusionChange}
+                  onSelectAllRoles={handleSelectAllRoles}
                 />
               )}
             </div>
