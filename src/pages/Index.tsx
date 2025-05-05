@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserList } from '@/components/UserList';
 import { Header } from '@/components/Header';
 import { SearchBar } from '@/components/SearchBar';
@@ -19,6 +19,7 @@ const Index = () => {
   const [selectedPortal, setSelectedPortal] = useState<string | null>(null);
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [excludedRoles, setExcludedRoles] = useState<string[]>([]);
+  const [includedRoles, setIncludedRoles] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const { toast } = useToast();
   
@@ -28,7 +29,17 @@ const Index = () => {
     queryFn: () => fetchUsers(),
   });
 
-  // Filter users by search term, portal, and manager
+  // When users data is loaded, initialize includedRoles with all available roles
+  useEffect(() => {
+    if (allUsers && allUsers.length > 0) {
+      const allAvailableRoles = Array.from(
+        new Set(allUsers.flatMap(user => user.roles))
+      );
+      setIncludedRoles(allAvailableRoles);
+    }
+  }, [allUsers]);
+
+  // Filter users by search term, portal, manager and roles
   const filteredUsers = (allUsers || []).filter(user => {
     const matchesSearch = 
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -41,7 +52,10 @@ const Index = () => {
     // Check if user has any excluded roles
     const hasExcludedRole = user.roles.some(role => excludedRoles.includes(role));
     
-    return matchesSearch && matchesPortal && matchesManager && !hasExcludedRole;
+    // Check if user has at least one included role (if includedRoles is not empty)
+    const hasIncludedRole = includedRoles.length === 0 || user.roles.some(role => includedRoles.includes(role));
+    
+    return matchesSearch && matchesPortal && matchesManager && !hasExcludedRole && hasIncludedRole;
   });
 
   const handleUserUpdate = async (updatedUser: User) => {
@@ -79,6 +93,14 @@ const Index = () => {
       setExcludedRoles(prev => [...prev, role]);
     } else {
       setExcludedRoles(prev => prev.filter(r => r !== role));
+    }
+  };
+
+  const handleRoleInclusionChange = (role: string, included: boolean) => {
+    if (included) {
+      setIncludedRoles(prev => [...prev, role]);
+    } else {
+      setIncludedRoles(prev => prev.filter(r => r !== role));
     }
   };
 
@@ -123,7 +145,9 @@ const Index = () => {
                   selectedPortal={selectedPortal}
                   selectedManager={selectedManager}
                   excludedRoles={excludedRoles}
+                  includedRoles={includedRoles}
                   onRoleExclusionChange={handleRoleExclusionChange}
+                  onRoleInclusionChange={handleRoleInclusionChange}
                 />
               )}
             </div>
