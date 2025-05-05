@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Database, Download, ArrowLeft, ArrowRight, UserSearch, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,7 +15,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter
+  DialogFooter,
+  DialogDescription
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -236,9 +236,11 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
         <DialogContent className="bg-teleport-gray border-teleport-blue">
           <DialogHeader>
             <DialogTitle className="text-white">Select Portal</DialogTitle>
+            <DialogDescription className="text-gray-300">
+              Choose which portal to fetch user data from
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <p className="text-gray-300 mb-4">Choose which portal to fetch user data from:</p>
             <Select onValueChange={setSelectedPortal} value={selectedPortal || ""}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a portal" />
