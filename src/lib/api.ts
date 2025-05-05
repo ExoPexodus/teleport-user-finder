@@ -1,4 +1,3 @@
-
 import { User } from '@/types/user';
 
 // Using relative URL to make requests go through nginx proxy
@@ -65,4 +64,3 @@ export async function fetchUsersFromSSH(client: string): Promise<{ success: bool
   
   return response.json();
 }
-

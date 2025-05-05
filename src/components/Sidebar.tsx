@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Database, Download, ArrowLeft, ArrowRight, UserSearch } from 'lucide-react';
+import { Database, Download, ArrowLeft, ArrowRight, UserSearch, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
 import { User } from '@/types/user';
@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import { fetchUsersFromSSH } from '@/lib/api';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
   const { toast } = useToast();
   const [portalDialogOpen, setPortalDialogOpen] = useState(false);
   const [selectedPortal, setSelectedPortal] = useState<string | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
   
   const refreshData = () => {
     // Pass the selected portal to invalidate query
@@ -58,6 +60,42 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
   const openPortalDialog = () => {
     setSelectedPortal(null);
     setPortalDialogOpen(true);
+  };
+
+  const fetchUserDataFromSSH = async () => {
+    if (!selectedPortal) {
+      toast({
+        title: "Portal required",
+        description: "Please select a portal to fetch data from.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsFetching(true);
+    try {
+      const result = await fetchUsersFromSSH(selectedPortal);
+      
+      // Refetch user data to display the updated information
+      queryClient.invalidateQueries({ 
+        queryKey: ['users', selectedPortal] 
+      });
+      
+      toast({
+        title: "SSH fetch successful",
+        description: result.message || `User data has been successfully fetched from ${selectedPortal}.`
+      });
+      setPortalDialogOpen(false);
+    } catch (error) {
+      console.error('SSH fetch error:', error);
+      toast({
+        title: "SSH fetch failed",
+        description: error instanceof Error ? error.message : "Failed to fetch users from SSH server.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsFetching(false);
+    }
   };
 
   const downloadCSV = () => {
@@ -201,7 +239,7 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
           </DialogHeader>
           <div className="py-4">
             <p className="text-gray-300 mb-4">Choose which portal to fetch user data from:</p>
-            <Select onValueChange={setSelectedPortal} value={selectedPortal || "none"}>
+            <Select onValueChange={setSelectedPortal} value={selectedPortal || ""}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a portal" />
               </SelectTrigger>
@@ -209,17 +247,27 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
                 <SelectItem value="kocharsoft">Kocharsoft</SelectItem>
                 <SelectItem value="igzy">Igzy</SelectItem>
                 <SelectItem value="maxicus">Maxicus</SelectItem>
-                <SelectItem value="none">All Portals</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPortalDialogOpen(false)}>Cancel</Button>
             <Button 
-              onClick={refreshData} 
-              className="bg-teleport-blue hover:bg-teleport-blue/80"
+              onClick={fetchUserDataFromSSH}
+              className="bg-teleport-blue hover:bg-teleport-blue/80 flex items-center gap-2"
+              disabled={isFetching || !selectedPortal}
             >
-              Fetch Users
+              {isFetching ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Fetching...</span>
+                </>
+              ) : (
+                <>
+                  <Database className="h-4 w-4" />
+                  <span>Fetch SSH Users</span>
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
