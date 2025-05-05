@@ -18,6 +18,7 @@ const Index = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedPortal, setSelectedPortal] = useState<string | null>(null);
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
+  const [excludedRoles, setExcludedRoles] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const { toast } = useToast();
   
@@ -37,7 +38,10 @@ const Index = () => {
     const matchesPortal = !selectedPortal || user.portal === selectedPortal;
     const matchesManager = !selectedManager || user.manager === selectedManager;
     
-    return matchesSearch && matchesPortal && matchesManager;
+    // Check if user has any excluded roles
+    const hasExcludedRole = user.roles.some(role => excludedRoles.includes(role));
+    
+    return matchesSearch && matchesPortal && matchesManager && !hasExcludedRole;
   });
 
   const handleUserUpdate = async (updatedUser: User) => {
@@ -67,6 +71,14 @@ const Index = () => {
       setSelectedPortal(value || null);
     } else if (field === 'manager') {
       setSelectedManager(value || null);
+    }
+  };
+
+  const handleRoleExclusionChange = (role: string, excluded: boolean) => {
+    if (excluded) {
+      setExcludedRoles(prev => [...prev, role]);
+    } else {
+      setExcludedRoles(prev => prev.filter(r => r !== role));
     }
   };
 
@@ -110,6 +122,8 @@ const Index = () => {
                   onFilterChange={handleFilterChange}
                   selectedPortal={selectedPortal}
                   selectedManager={selectedManager}
+                  excludedRoles={excludedRoles}
+                  onRoleExclusionChange={handleRoleExclusionChange}
                 />
               )}
             </div>
