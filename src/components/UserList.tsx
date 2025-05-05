@@ -36,13 +36,14 @@ export const UserList = ({
     const headers = ["ID", "Name", "Roles", "Status", "Created Date", "Last Login", "Manager", "Portal"];
     const userRows = selectedUsers.map(user => [
       user.id,
-      user.name,
-      user.roles.join(", "),
+      // Wrap fields in quotes to handle special characters
+      `"${user.name}"`,
+      `"${user.roles.join("; ")}"`, // Use semicolon as separator for roles
       user.status,
       new Date(user.createdDate).toLocaleDateString(),
       user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never",
-      user.manager || "None",
-      user.portal || "None"
+      user.manager ? `"${user.manager}"` : "None",
+      user.portal ? `"${user.portal}"` : "None"
     ]);
     
     const csvContent = [

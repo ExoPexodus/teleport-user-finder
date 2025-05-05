@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { UserList } from '@/components/UserList';
 import { Header } from '@/components/Header';
@@ -20,19 +21,20 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const { toast } = useToast();
   
-  const { data: users, isLoading, error, refetch } = useQuery({
-    queryKey: ['users', selectedPortal],
-    queryFn: () => fetchUsers(selectedPortal || undefined),
+  // Fetch all users initially, then filter client-side
+  const { data: allUsers, isLoading, error, refetch } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => fetchUsers(),
   });
 
   // Filter users by search term, portal, and manager
-  const filteredUsers = (users || []).filter(user => {
+  const filteredUsers = (allUsers || []).filter(user => {
     const matchesSearch = 
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.roles.some(role => role.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (user.manager && user.manager.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesPortal = !selectedManager || user.manager === selectedManager;
+    const matchesPortal = !selectedPortal || user.portal === selectedPortal;
     const matchesManager = !selectedManager || user.manager === selectedManager;
     
     return matchesSearch && matchesPortal && matchesManager;
@@ -89,7 +91,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-teleport-darkgray">
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} users={users || []} />
+      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} users={allUsers || []} />
       <div className={`transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <Header />
         <main className="container px-4 py-8">
@@ -102,9 +104,9 @@ const Index = () => {
             <div className="space-y-4">
               <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
               
-              {!isLoading && !error && users && (
+              {!isLoading && !error && allUsers && (
                 <UserFilter 
-                  users={users} 
+                  users={allUsers} 
                   onFilterChange={handleFilterChange}
                   selectedPortal={selectedPortal}
                   selectedManager={selectedManager}

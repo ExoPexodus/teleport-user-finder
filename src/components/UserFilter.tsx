@@ -29,7 +29,7 @@ export const UserFilter = ({
   selectedManager
 }: UserFilterProps) => {
   
-  // Extract unique portals from users
+  // Extract unique portals from all users, not just filtered ones
   const portalOptions: FilterOption[] = [
     { value: 'all', label: 'All Portals' },
     ...Array.from(new Set(users.map(user => user.portal).filter(Boolean)))

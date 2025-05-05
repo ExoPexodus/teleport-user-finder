@@ -72,16 +72,6 @@ export const UserCard = ({ user, onClick }: UserCardProps) => {
             <span className="font-semibold">Created:</span>
             <span>{format(new Date(user.createdDate), 'MMM d, yyyy')}</span>
           </div>
-          
-          <div className="flex items-center gap-2 text-sm">
-            <UserCheck className="h-4 w-4 text-teleport-blue" />
-            <span className="font-semibold">Last Login:</span>
-            <span>
-              {user.lastLogin 
-                ? format(new Date(user.lastLogin), 'MMM d, yyyy h:mm a')
-                : 'Never logged in'}
-            </span>
-          </div>
 
           <div className="flex items-center gap-2 text-sm">
             <UserCog className="h-4 w-4 text-teleport-blue" />
