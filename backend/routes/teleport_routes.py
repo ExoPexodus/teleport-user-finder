@@ -35,7 +35,7 @@ def login():
     logging.info(f"JWT token created for user: {username}")
     return jsonify({'token': token})
 
-@teleport_routes.route('/teleport/tkgen', methods=['GET'])
+@teleport_routes.route('/teleport/tkgen', methods=['POST'])
 @token_required
 def run_fixed_command():
     """Generate a teleport token."""
@@ -209,4 +209,3 @@ def fetch_users_from_ssh():
     except json.JSONDecodeError as e:
         logging.error(f"Error parsing JSON output: {str(e)}")
         return jsonify({'success': False, 'message': f"Error parsing user data: {str(e)}"}), 500
-

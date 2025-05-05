@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Database, Download, ArrowLeft, ArrowRight, UserSearch, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Database, Download, ArrowLeft, ArrowRight, UserSearch, RefreshCw, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
 import { User } from '@/types/user';
@@ -26,6 +26,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { fetchUsersFromSSH } from '@/lib/api';
+import { LoginDialog } from './LoginDialog';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -37,8 +38,16 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [portalDialogOpen, setPortalDialogOpen] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [selectedPortal, setSelectedPortal] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // Check if the user has a token on component mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    setIsAuthenticated(!!token);
+  }, []);
   
   const refreshData = () => {
     // Pass the selected portal to invalidate query
@@ -58,6 +67,17 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
   };
 
   const openPortalDialog = () => {
+    if (!isAuthenticated) {
+      setLoginDialogOpen(true);
+      return;
+    }
+    setSelectedPortal(null);
+    setPortalDialogOpen(true);
+  };
+
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    // Open the portal dialog after successful login
     setSelectedPortal(null);
     setPortalDialogOpen(true);
   };
@@ -88,6 +108,13 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
       setPortalDialogOpen(false);
     } catch (error) {
       console.error('SSH fetch error:', error);
+      
+      if (error instanceof Error && error.message.includes('Token')) {
+        // If token is invalid or missing, show login dialog
+        setIsAuthenticated(false);
+        setLoginDialogOpen(true);
+      }
+      
       toast({
         title: "SSH fetch failed",
         description: error instanceof Error ? error.message : "Failed to fetch users from SSH server.",
@@ -208,6 +235,24 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
                 {!isOpen && <TooltipContent side="right">Download User Data</TooltipContent>}
               </Tooltip>
             </li>
+            <li>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size={isOpen ? "default" : "icon"} 
+                    className={`w-full justify-start text-white hover:bg-gray-700 ${!isOpen && 'p-2'} cursor-pointer`}
+                    onClick={() => setLoginDialogOpen(true)}
+                  >
+                    <LogIn size={20} className="mr-2" />
+                    <span className={`transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>
+                      {isAuthenticated ? "Re-authenticate" : "Login"}
+                    </span>
+                  </Button>
+                </TooltipTrigger>
+                {!isOpen && <TooltipContent side="right">{isAuthenticated ? "Re-authenticate" : "Login"}</TooltipContent>}
+              </Tooltip>
+            </li>
           </ul>
         </div>
         
@@ -274,6 +319,13 @@ export const Sidebar = ({ isOpen, setIsOpen, users }: SidebarProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Login Dialog */}
+      <LoginDialog 
+        isOpen={loginDialogOpen} 
+        onClose={() => setLoginDialogOpen(false)} 
+        onSuccess={handleLoginSuccess} 
+      />
     </TooltipProvider>
   );
 };

@@ -1,3 +1,4 @@
+
 import { User } from '@/types/user';
 
 // Using relative URL to make requests go through nginx proxy
@@ -47,12 +48,40 @@ export async function deleteUsers(userIds: string[]): Promise<{ success: boolean
   return response.json();
 }
 
+export async function login(username: string, password: string): Promise<{ token: string }> {
+  const response = await fetch('/teleport/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ username, password }),
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Login failed');
+  }
+  
+  const data = await response.json();
+  // Store the token in localStorage for future requests
+  localStorage.setItem('token', data.token);
+  
+  return data;
+}
+
 export async function fetchUsersFromSSH(client: string): Promise<{ success: boolean; message: string }> {
+  // Get the token from localStorage
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Token is missing! Please login first.');
+  }
+  
   const response = await fetch('/teleport/fetch-users', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      'x-access-token': token, // Use the token in the headers as expected by the backend
     },
     body: JSON.stringify({ client }),
   });
