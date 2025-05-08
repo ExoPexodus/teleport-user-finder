@@ -31,6 +31,6 @@ def token_required(f):
 def generate_token(username):
     """Generate a new JWT token for the given username."""
     return jwt.encode(
-        {'username': username, 'exp': datetime.utcnow() + timedelta(minutes=10)},
+        {'username': username, 'exp': datetime.utcnow() + timedelta(hours=24)},
         SECRET_KEY, algorithm="HS256"
     )

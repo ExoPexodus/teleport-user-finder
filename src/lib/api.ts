@@ -121,6 +121,17 @@ export async function scheduleRoleChange(schedule: RoleChangeSchedule): Promise<
     body: JSON.stringify(schedule),
   });
   
+  if (response.status === 403) {
+    // Handle token expiration
+    const errorData = await response.json();
+    if (errorData.message?.includes('Token has expired')) {
+      // Clear the invalid token
+      localStorage.removeItem('token');
+      throw new Error('Token has expired! Please login again.');
+    }
+    throw new Error(errorData.message || 'Authentication failed');
+  }
+  
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.message || 'Failed to schedule role change');
