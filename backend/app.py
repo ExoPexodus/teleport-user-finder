@@ -14,6 +14,9 @@ from config import DEBUG, SSH_HOSTS, SSH_PORT, SSH_USER
 from routes.user_routes import user_routes
 from routes.teleport_routes import teleport_routes
 
+# Import the task scheduler
+from scheduler import scheduler
+
 # Setup logging
 logger = setup_logging()
 
@@ -33,6 +36,12 @@ logger.info(f"Loaded SSH configuration: hosts={SSH_HOSTS}, port={SSH_PORT}, user
 def health_check():
     """Health check endpoint."""
     return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
+
+# Start the task scheduler when the app starts
+@app.before_first_request
+def start_scheduler():
+    logger.info("Starting the task scheduler")
+    scheduler.start()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=DEBUG)

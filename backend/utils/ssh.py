@@ -36,9 +36,12 @@ def execute_ssh_command(client, command):
         logging.info("SSH connection closed")
 
         if error:
-            # Check if the error message contains the specific security patch warning
+            # Check if the error message contains specific warnings that can be ignored
             if "A security patch is available for Teleport" in error:
                 logging.info("Ignoring security patch warning: No action needed.")
+            elif "permission denied" in error.lower() or "teleport does not have permission" in error.lower():
+                logging.error(f"Permission error: {error}")
+                return None, f"Permission error executing command. Please ensure the SSH user has the required permissions: {error}"
             else:
                 logging.error(f"Error while executing command: {error}")
                 return None, error

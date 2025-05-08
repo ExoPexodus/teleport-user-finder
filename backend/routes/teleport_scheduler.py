@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify
 import logging
 from datetime import datetime
@@ -78,32 +77,29 @@ def schedule_role_change():
         logging.error(f"Invalid datetime format: {scheduled_time_str}, error: {str(e)}")
         return jsonify({'success': False, 'message': 'Invalid datetime format'}), 400
 
-@teleport_scheduler_routes.route('/teleport/execute-role-change', methods=['POST'])
-@token_required
-def execute_role_change():
-    """Execute a role change for a user."""
-    data = request.json
-    if not data:
-        return jsonify({'success': False, 'message': 'Missing request data'}), 400
+def execute_task_internal(data):
+    """Internal function to execute a role change task without requiring an HTTP request.
+    This is used by the task scheduler.
     
-    required_fields = ['taskId', 'userName', 'portal', 'action', 'roles']
-    for field in required_fields:
-        if field not in data:
-            return jsonify({'success': False, 'message': f'Missing required field: {field}'}), 400
-    
-    task_id = data['taskId']
-    user_name = data['userName']
-    portal = data['portal']
-    action = data['action']  # 'add' or 'remove'
-    roles_to_change = data['roles']
-    
+    Args:
+        data: Dictionary containing taskId, userName, portal, action, and roles.
+        
+    Returns:
+        Dictionary with success status and message.
+    """
     try:
+        task_id = data['taskId']
+        user_name = data['userName']
+        portal = data['portal']
+        action = data['action']
+        roles_to_change = data['roles']
+        
         # Get the current user from database to know their current roles
         session = get_db_session()
         try:
             user = session.query(User).filter_by(name=user_name, portal=portal).first()
             if not user:
-                return jsonify({'success': False, 'message': 'User not found in specified portal'}), 404
+                return {'success': False, 'message': 'User not found in specified portal'}
             
             # Get current roles as a list
             current_roles = user.roles.split(',') if user.roles else []
@@ -125,11 +121,19 @@ def execute_role_change():
             
             if error:
                 logging.error(f"Error executing role change: {error}")
-                return jsonify({'success': False, 'message': f"Error executing role change: {error}"}), 500
+                
+                # Update task status to failed
+                task = session.query(ScheduledTask).filter_by(id=task_id).first()
+                if task:
+                    task.status = 'failed'
+                    task.executed_at = datetime.now()
+                    task.result = error
+                    session.commit()
+                
+                return {'success': False, 'message': f"Error executing role change: {error}"}
             
             # Update user in database
             user.roles = ','.join(new_roles)
-            session.commit()
             
             # Update task status
             task = session.query(ScheduledTask).filter_by(id=task_id).first()
@@ -137,26 +141,56 @@ def execute_role_change():
                 task.status = 'completed'
                 task.executed_at = datetime.now()
                 task.result = output
-                session.commit()
+            
+            session.commit()
             
             logging.info(f"Task {task_id} completed successfully")
             
-            return jsonify({
+            return {
                 'success': True,
                 'message': f"Roles updated for {user_name}",
                 'output': output
-            })
+            }
         
         except Exception as e:
             session.rollback()
             logging.error(f"Error during role execution: {str(e)}")
-            return jsonify({'success': False, 'message': f"Execution error: {str(e)}"}), 500
+            
+            # Try to update task status to failed
+            try:
+                task = session.query(ScheduledTask).filter_by(id=task_id).first()
+                if task:
+                    task.status = 'failed'
+                    task.executed_at = datetime.now()
+                    task.result = str(e)
+                    session.commit()
+            except:
+                pass
+                
+            return {'success': False, 'message': f"Execution error: {str(e)}"}
         finally:
             session.close()
             
     except Exception as e:
-        logging.error(f"General error: {str(e)}")
-        return jsonify({'success': False, 'message': f"Error: {str(e)}"}), 500
+        logging.error(f"General error in execute_task_internal: {str(e)}")
+        return {'success': False, 'message': f"Error: {str(e)}"}
+
+@teleport_scheduler_routes.route('/teleport/execute-role-change', methods=['POST'])
+@token_required
+def execute_role_change():
+    """Execute a role change for a user."""
+    data = request.json
+    if not data:
+        return jsonify({'success': False, 'message': 'Missing request data'}), 400
+    
+    # Process the data through the internal function
+    result = execute_task_internal(data)
+    
+    # Convert the result to a proper HTTP response
+    if result['success']:
+        return jsonify(result)
+    else:
+        return jsonify(result), 500
 
 @teleport_scheduler_routes.route('/teleport/execute-role-change-immediate', methods=['POST'])
 @token_required
