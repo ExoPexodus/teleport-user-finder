@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { UserList } from '@/components/UserList';
 import { Header } from '@/components/Header';
@@ -137,9 +136,59 @@ const Index = () => {
     }
   };
 
+  const handleExportAllUsers = () => {
+    if (!allUsers || allUsers.length === 0) {
+      toast({
+        title: "No Data Available",
+        description: "There are no users to export.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Export all users to CSV
+    const headers = ["ID", "Name", "Roles", "Status", "Created Date", "Last Login", "Manager", "Portal"];
+    const userRows = allUsers.map(user => [
+      user.id,
+      `"${user.name}"`,
+      `"${user.roles.join("; ")}"`,
+      user.status,
+      new Date(user.createdDate).toLocaleDateString(),
+      user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never",
+      user.manager ? `"${user.manager}"` : "None",
+      user.portal ? `"${user.portal}"` : "None"
+    ]);
+    
+    const csvContent = [
+      headers.join(","),
+      ...userRows.map(row => row.join(","))
+    ].join("\n");
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `all_users_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "CSV Downloaded",
+      description: `${allUsers.length} users exported to CSV successfully.`
+    });
+  };
+
   return (
     <div className="min-h-screen bg-teleport-darkgray">
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} users={allUsers || []} />
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        setIsOpen={setSidebarOpen} 
+        users={allUsers || []} 
+        onFetchData={refetch}
+        onExportCsv={handleExportAllUsers}
+      />
       <div className={`transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <Header />
         <main className="container px-4 py-8">

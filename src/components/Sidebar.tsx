@@ -2,18 +2,87 @@
 import React from 'react';
 import { User } from '@/types/user';
 import { Link } from 'react-router-dom';
-import { Clock, Users } from 'lucide-react';
+import { Clock, Download, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 interface SidebarProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   users: User[];
   currentPage?: string;
+  onFetchData?: () => void;
+  onExportCsv?: () => void;
 }
 
-export const Sidebar = ({ isOpen, setIsOpen, users, currentPage = 'home' }: SidebarProps) => {
+export const Sidebar = ({ 
+  isOpen, 
+  setIsOpen, 
+  users, 
+  currentPage = 'home',
+  onFetchData,
+  onExportCsv 
+}: SidebarProps) => {
+  const { toast } = useToast();
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
+  };
+
+  const handleFetchData = () => {
+    if (onFetchData) {
+      onFetchData();
+      toast({
+        title: "Refreshing Data",
+        description: "Fetching the latest user data..."
+      });
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (onExportCsv) {
+      onExportCsv();
+    } else {
+      // Create CSV content from all users if no callback is provided
+      if (users && users.length > 0) {
+        const headers = ["ID", "Name", "Roles", "Status", "Created Date", "Last Login", "Manager", "Portal"];
+        const userRows = users.map(user => [
+          user.id,
+          `"${user.name}"`,
+          `"${user.roles.join("; ")}"`,
+          user.status,
+          new Date(user.createdDate).toLocaleDateString(),
+          user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never",
+          user.manager ? `"${user.manager}"` : "None",
+          user.portal ? `"${user.portal}"` : "None"
+        ]);
+        
+        const csvContent = [
+          headers.join(","),
+          ...userRows.map(row => row.join(","))
+        ].join("\n");
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `all_users_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast({
+          title: "CSV Downloaded",
+          description: `${users.length} users exported to CSV successfully.`
+        });
+      } else {
+        toast({
+          title: "No Data Available",
+          description: "There are no users to export.",
+          variant: "destructive"
+        });
+      }
+    }
   };
 
   return (
@@ -57,6 +126,28 @@ export const Sidebar = ({ isOpen, setIsOpen, users, currentPage = 'home' }: Side
           <Clock size={20} className="text-white" />
           {isOpen && <span className="text-white">Role Scheduler</span>}
         </Link>
+
+        <div className="mt-4 border-t border-slate-700 pt-4 space-y-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            className={`w-full justify-start text-white border-slate-700 hover:bg-slate-700 hover:text-white ${!isOpen && 'px-2'}`}
+            onClick={handleFetchData}
+          >
+            <Users size={16} className={`${isOpen ? 'mr-2' : 'mx-auto'}`} />
+            {isOpen && <span>Fetch Users</span>}
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            size="sm"
+            className={`w-full justify-start text-white border-slate-700 hover:bg-slate-700 hover:text-white ${!isOpen && 'px-2'}`}
+            onClick={handleExportCsv}
+          >
+            <Download size={16} className={`${isOpen ? 'mr-2' : 'mx-auto'}`} />
+            {isOpen && <span>Export CSV</span>}
+          </Button>
+        </div>
       </nav>
     </aside>
   );
