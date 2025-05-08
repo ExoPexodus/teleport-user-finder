@@ -120,7 +120,7 @@ def execute_role_change():
             roles_str = ','.join(new_roles)
             
             # Execute the command via SSH
-            command = f"tctl users update --set-roles {roles_str} {user_name}"
+            command = f"sudo tctl users update --set-roles {roles_str} {user_name}"
             output, error = execute_ssh_command(portal, command)
             
             if error:
@@ -146,7 +146,7 @@ def execute_role_change():
                 'message': f"Roles updated for {user_name}",
                 'output': output
             })
-            
+        
         except Exception as e:
             session.rollback()
             logging.error(f"Error during role execution: {str(e)}")
@@ -200,7 +200,7 @@ def execute_role_change_immediate():
             roles_str = ','.join(new_roles)
             
             # Execute the command via SSH
-            command = f"tctl users update --set-roles {roles_str} {user_name}"
+            command = f"sudo tctl users update --set-roles {roles_str} {user_name}"
             output, error = execute_ssh_command(portal, command)
             
             if error:
