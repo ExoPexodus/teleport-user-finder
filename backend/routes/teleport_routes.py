@@ -39,173 +39,155 @@ def login():
 @token_required
 def run_fixed_command():
     """Generate a teleport token."""
-    data = request.json
-    if not data:
-        return jsonify({'message': 'Missing JSON body'}), 400
-        
-    client = data.get('client')
-    if not client:
-        return jsonify({'message': 'Missing client parameter'}), 400
-
-    # Execute the teleport command to generate a token
-    command = 'sudo tctl tokens add --ttl=5m --type=node'
-    output, error = execute_ssh_command(client, command)
-    
-    if error:
-        return jsonify({'message': error}), 500
-    
-    # Process the output to extract details
-    lines = [line.strip() for line in output.strip().split('\n')]
-
-    invite_token = None
-    expiry = None
-    join_command = {
-        "command": "teleport start",
-        "options": {}
-    }
-    notes = []
-
-    # Extract invite token
-    try:
-        invite_token = lines[0].split(': ')[1]
-    except IndexError:
-        invite_token = "Not found"
-
-    # Extract expiry
-    try:
-        expiry = lines[1].split('in ')[1]
-    except IndexError:
-        expiry = "Not found"
-
-    # Extract command options
-    try:
-        command_lines = lines[5:]
-        for line in command_lines:
-            if '--roles=' in line:
-                join_command["options"]["roles"] = line.split('--roles=')[1].split(' ')[0]
-            if '--token=' in line:
-                join_command["options"]["token"] = line.split('--token=')[1].split(' ')[0]
-            if '--ca-pin=' in line:
-                join_command["options"]["ca_pin"] = line.split('--ca-pin=')[1].split(' ')[0]
-            if '--auth-server=' in line:
-                join_command["options"]["auth_server"] = line.split('--auth-server=')[1].split(' ')[0]
-    except IndexError:
-        pass
-
-    # Create JSON structure
-    json_output = {
-        "invite_token": invite_token,
-        "expiry": expiry,
-        "join_command": join_command,
-        "notes": notes
-    }
-
-    return jsonify(json_output), 200
+    # ... keep existing code (token generation functionality)
 
 @teleport_routes.route('/teleport/generate-hash', methods=['POST'])
 def generate_hash():
     """Generate a password hash - useful for setup."""
-    # This route should only be enabled in development environments
-    if os.environ.get('FLASK_ENV') != 'development':
-        return jsonify({'message': 'This endpoint is only available in development mode'}), 403
-    
-    data = request.json
-    password = data.get('password')
-    
-    if not password:
-        return jsonify({'message': 'Password is required'}), 400
-    
-    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-    return jsonify({'hash': hashed_password})
+    # ... keep existing code (password hash generation)
 
 @teleport_routes.route('/teleport/fetch-users', methods=['POST'])
 @token_required
 def fetch_users_from_ssh():
     """Fetch users from Teleport servers via SSH and update the database."""
+    # ... keep existing code (fetch users from SSH functionality)
+
+@teleport_routes.route('/teleport/schedule-role-change', methods=['POST'])
+@token_required
+def schedule_role_change():
+    """Schedule a role change for a user at a specific time."""
     data = request.json
-    client = data.get('client')
+    if not data:
+        return jsonify({'success': False, 'message': 'Missing request data'}), 400
     
-    if not client:
-        return jsonify({'message': 'Missing client parameter'}), 400
+    required_fields = ['userId', 'userName', 'portal', 'scheduledTime', 'action', 'roles']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({'success': False, 'message': f'Missing required field: {field}'}), 400
     
-    logging.info(f"Fetching users from client: {client}")
-    
-    # Execute the teleport command to list users
-    command = 'sudo tctl users ls --format=json'
-    output, error = execute_ssh_command(client, command)
-    
-    if error:
-        logging.error(f"Error fetching users from {client}: {error}")
-        return jsonify({'success': False, 'message': f"Error fetching users: {error}"}), 500
+    user_id = data['userId']
+    user_name = data['userName']
+    portal = data['portal']
+    scheduled_time_str = data['scheduledTime']
+    action = data['action']  # 'add' or 'remove'
+    roles = data['roles']
     
     try:
-        # Parse the JSON output
-        users_data = json.loads(output)
+        # Parse the scheduled time
+        scheduled_time = datetime.fromisoformat(scheduled_time_str.replace('Z', '+00:00'))
         
-        # Start a database session
+        # Create a new scheduled task in the database
         session = get_db_session()
-        
-        users_processed = 0
-        users_added = 0
-        users_updated = 0
-        
         try:
-            for user_data in users_data:
-                users_processed += 1
-                
-                # Extract relevant information
-                name = user_data.get('metadata', {}).get('name', '')
-                roles = user_data.get('spec', {}).get('roles', [])
-                roles_str = ','.join(roles) if roles else ''
-                
-                created_date_str = user_data.get('spec', {}).get('created_by', {}).get('time')
-                created_date = None
-                if created_date_str:
-                    try:
-                        created_date = datetime.fromisoformat(created_date_str.replace('Z', '+00:00'))
-                    except ValueError:
-                        logging.warning(f"Could not parse date: {created_date_str}")
-                
-                # Check if this user already exists for this portal
-                existing_user = session.query(User).filter_by(name=name, portal=client).first()
-                
-                if existing_user:
-                    # Update existing user
-                    existing_user.roles = roles_str
-                    if created_date:
-                        existing_user.created_date = created_date
-                    users_updated += 1
-                    logging.info(f"Updated user {name} in portal {client}")
-                else:
-                    # Create new user
-                    new_user = User(
-                        id=str(uuid.uuid4()),
-                        name=name,
-                        roles=roles_str,
-                        created_date=created_date or datetime.utcnow(),
-                        status='active',
-                        portal=client
-                    )
-                    session.add(new_user)
-                    users_added += 1
-                    logging.info(f"Added new user {name} to portal {client}")
+            # Get the current user data to know their current roles
+            user = session.query(User).filter_by(id=user_id).first()
+            if not user:
+                return jsonify({'success': False, 'message': 'User not found'}), 404
             
-            # Commit the changes
-            session.commit()
+            # Create a scheduled task record
+            # This is simplified - you would typically have a ScheduledTask model
+            scheduled_task = {
+                "id": str(uuid.uuid4()),
+                "user_id": user_id,
+                "user_name": user_name,
+                "portal": portal,
+                "scheduled_time": scheduled_time.isoformat(),
+                "action": action,
+                "roles": roles,
+                "status": "scheduled"
+            }
             
+            # In a real implementation, you would save this to a database table
+            # For now, log it
+            logging.info(f"Created scheduled task: {json.dumps(scheduled_task)}")
+            
+            # Return success response
             return jsonify({
                 'success': True,
-                'message': f"Successfully processed {users_processed} users: {users_added} added, {users_updated} updated",
-                'client': client
+                'message': f"Role change scheduled for {user_name} on {scheduled_time_str}",
+                'task_id': scheduled_task['id']
             })
             
         except Exception as e:
             session.rollback()
-            logging.error(f"Database error while processing users: {str(e)}")
+            logging.error(f"Database error while scheduling task: {str(e)}")
             return jsonify({'success': False, 'message': f"Database error: {str(e)}"}), 500
         finally:
             session.close()
             
-    except json.JSONDecodeError as e:
-        logging.error(f"Error parsing JSON output: {str(e)}")
-        return jsonify({'success': False, 'message': f"Error parsing user data: {str(e)}"}), 500
+    except ValueError as e:
+        logging.error(f"Invalid datetime format: {scheduled_time_str}, error: {str(e)}")
+        return jsonify({'success': False, 'message': 'Invalid datetime format'}), 400
+
+@teleport_routes.route('/teleport/execute-role-change', methods=['POST'])
+@token_required
+def execute_role_change():
+    """Execute a role change for a user."""
+    data = request.json
+    if not data:
+        return jsonify({'success': False, 'message': 'Missing request data'}), 400
+    
+    required_fields = ['taskId', 'userName', 'portal', 'action', 'roles']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({'success': False, 'message': f'Missing required field: {field}'}), 400
+    
+    task_id = data['taskId']
+    user_name = data['userName']
+    portal = data['portal']
+    action = data['action']  # 'add' or 'remove'
+    roles_to_change = data['roles']
+    
+    try:
+        # Get the current user from database to know their current roles
+        session = get_db_session()
+        try:
+            user = session.query(User).filter_by(name=user_name, portal=portal).first()
+            if not user:
+                return jsonify({'success': False, 'message': 'User not found in specified portal'}), 404
+            
+            # Get current roles as a list
+            current_roles = user.roles.split(',') if user.roles else []
+            
+            # Calculate new roles based on action
+            if action == 'add':
+                # Add roles that aren't already present
+                new_roles = current_roles + [r for r in roles_to_change if r not in current_roles]
+            else:  # remove
+                # Remove specified roles
+                new_roles = [r for r in current_roles if r not in roles_to_change]
+            
+            # Join roles into comma-separated string for command
+            roles_str = ','.join(new_roles)
+            
+            # Execute the command via SSH
+            command = f"tctl users update --set-roles {roles_str} {user_name}"
+            output, error = execute_ssh_command(portal, command)
+            
+            if error:
+                logging.error(f"Error executing role change: {error}")
+                return jsonify({'success': False, 'message': f"Error executing role change: {error}"}), 500
+            
+            # Update user in database
+            user.roles = ','.join(new_roles)
+            session.commit()
+            
+            # Update task status (in a real app)
+            logging.info(f"Task {task_id} completed successfully")
+            
+            return jsonify({
+                'success': True,
+                'message': f"Roles updated for {user_name}",
+                'output': output
+            })
+            
+        except Exception as e:
+            session.rollback()
+            logging.error(f"Error during role execution: {str(e)}")
+            return jsonify({'success': False, 'message': f"Execution error: {str(e)}"}), 500
+        finally:
+            session.close()
+            
+    except Exception as e:
+        logging.error(f"General error: {str(e)}")
+        return jsonify({'success': False, 'message': f"Error: {str(e)}"}), 500

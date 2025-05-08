@@ -93,3 +93,38 @@ export async function fetchUsersFromSSH(client: string): Promise<{ success: bool
   
   return response.json();
 }
+
+// Interface for role change schedule
+export interface RoleChangeSchedule {
+  userId: string;
+  userName: string;
+  portal: string;
+  scheduledTime: string;
+  action: 'add' | 'remove';
+  roles: string[];
+}
+
+// Function to schedule a role change
+export async function scheduleRoleChange(schedule: RoleChangeSchedule): Promise<{ success: boolean; message: string }> {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Token is missing! Please login first.');
+  }
+  
+  const response = await fetch('/teleport/schedule-role-change', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-access-token': token,
+    },
+    body: JSON.stringify(schedule),
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to schedule role change');
+  }
+  
+  return response.json();
+}
