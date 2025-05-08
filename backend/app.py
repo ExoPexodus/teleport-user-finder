@@ -37,9 +37,9 @@ def health_check():
     """Health check endpoint."""
     return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
 
-# Start the task scheduler when the app starts
-@app.before_first_request
-def start_scheduler():
+# Start the scheduler when the app starts
+# Replace deprecated @app.before_first_request with proper startup function
+with app.app_context():
     logger.info("Starting the task scheduler")
     scheduler.start()
 

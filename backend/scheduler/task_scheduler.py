@@ -3,11 +3,16 @@ import threading
 import time
 import logging
 from datetime import datetime
-import requests
+# Try to import requests, but provide a fallback if not available
+try:
+    import requests
+except ImportError:
+    requests = None
+    logging.warning("requests module not available, external API calls will not work")
+
 from sqlalchemy import and_
 from models.scheduled_task import ScheduledTask
 from utils.db import get_db_session
-from config import API_BASE_URL
 
 class TaskScheduler:
     def __init__(self, check_interval=60):
@@ -97,8 +102,7 @@ class TaskScheduler:
             }
             
             # Call the execute endpoint using internal API call
-            # This needs to be updated with proper authentication handling
-            # For now, we'll use a direct database access approach
+            # Import here to avoid circular imports
             from routes.teleport_scheduler import execute_task_internal
             result = execute_task_internal(data)
             
