@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { User } from '@/types/user';
 import { Link } from 'react-router-dom';
-import { Clock, Download, Users } from 'lucide-react';
+import { Clock, Download, Users, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -210,6 +210,15 @@ export const Sidebar = ({
           >
             <Clock size={20} className="text-white" />
             {isOpen && <span className="text-white">Role Scheduler</span>}
+          </Link>
+          
+          <Link 
+            to="/scheduled-jobs" 
+            className={`flex items-center space-x-2 p-2 rounded mb-2 hover:bg-slate-700 transition-colors
+                        ${currentPage === 'scheduled-jobs' ? 'bg-slate-700' : ''}`}
+          >
+            <Calendar size={20} className="text-white" />
+            {isOpen && <span className="text-white">Scheduled Jobs</span>}
           </Link>
 
           <div className="mt-4 border-t border-slate-700 pt-4 space-y-2">

@@ -1,5 +1,5 @@
-
 import { User } from '@/types/user';
+import { RoleChangeSchedule } from '@/types/schedule';
 
 // Using relative URL to make requests go through nginx proxy
 const API_URL = '/api';
@@ -96,12 +96,16 @@ export async function fetchUsersFromSSH(client: string): Promise<{ success: bool
 
 // Interface for role change schedule
 export interface RoleChangeSchedule {
+  id?: string;
   userId: string;
   userName: string;
   portal: string;
   scheduledTime: string;
   action: 'add' | 'remove';
   roles: string[];
+  status?: string;
+  executedAt?: string;
+  result?: string;
 }
 
 // Function to schedule a role change
@@ -135,6 +139,118 @@ export async function scheduleRoleChange(schedule: RoleChangeSchedule): Promise<
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.message || 'Failed to schedule role change');
+  }
+  
+  return response.json();
+}
+
+// Function to fetch all scheduled role changes
+export async function fetchScheduledJobs(): Promise<RoleChangeSchedule[]> {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Token is missing! Please login first.');
+  }
+  
+  const response = await fetch('/teleport/scheduled-jobs', {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-access-token': token,
+    }
+  });
+  
+  if (response.status === 403) {
+    // Handle token expiration
+    const errorData = await response.json();
+    if (errorData.message?.includes('Token has expired')) {
+      // Clear the invalid token
+      localStorage.removeItem('token');
+      throw new Error('Token has expired! Please login again.');
+    }
+    throw new Error(errorData.message || 'Authentication failed');
+  }
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to fetch scheduled jobs');
+  }
+  
+  return response.json();
+}
+
+// Function to execute a role change immediately
+export async function executeRoleChange(userId: string, userName: string, portal: string, action: 'add' | 'remove', roles: string[]): Promise<{ success: boolean; message: string }> {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Token is missing! Please login first.');
+  }
+  
+  const response = await fetch('/teleport/execute-role-change-immediate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-access-token': token,
+    },
+    body: JSON.stringify({
+      userId,
+      userName,
+      portal,
+      action,
+      roles
+    }),
+  });
+  
+  if (response.status === 403) {
+    // Handle token expiration
+    const errorData = await response.json();
+    if (errorData.message?.includes('Token has expired')) {
+      // Clear the invalid token
+      localStorage.removeItem('token');
+      throw new Error('Token has expired! Please login again.');
+    }
+    throw new Error(errorData.message || 'Authentication failed');
+  }
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to execute role change');
+  }
+  
+  return response.json();
+}
+
+// Function to fetch available roles for a portal
+export async function fetchAvailableRoles(portal: string): Promise<string[]> {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Token is missing! Please login first.');
+  }
+  
+  const response = await fetch(`/teleport/available-roles?portal=${encodeURIComponent(portal)}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-access-token': token,
+    }
+  });
+  
+  if (response.status === 403) {
+    // Handle token expiration
+    const errorData = await response.json();
+    if (errorData.message?.includes('Token has expired')) {
+      // Clear the invalid token
+      localStorage.removeItem('token');
+      throw new Error('Token has expired! Please login again.');
+    }
+    throw new Error(errorData.message || 'Authentication failed');
+  }
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to fetch available roles');
   }
   
   return response.json();

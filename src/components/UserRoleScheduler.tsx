@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '@/types/user';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -12,12 +12,9 @@ import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { scheduleRoleChange } from '@/lib/api';
+import { scheduleRoleChange, executeRoleChange, fetchAvailableRoles } from '@/lib/api';
 import { LoginDialog } from '@/components/LoginDialog';
-
-type PortalRolesMap = {
-  [portal: string]: string[];
-};
+import { useQuery } from '@tanstack/react-query';
 
 interface UserRoleSchedulerProps {
   user: User;
@@ -28,18 +25,22 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
   const [time, setTime] = useState('12:00');
   const [roleAction, setRoleAction] = useState<'add' | 'remove'>('remove');
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [selectedPortal, setSelectedPortal] = useState<string | null>(user.portal);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExecutingNow, setIsExecutingNow] = useState(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  // Get all unique portals where this user exists
-  const userPortals = [user.portal].filter(Boolean) as string[];
+  // Fetch available roles for the user's portal if action is 'add'
+  const { data: availableRoles, isLoading: isLoadingRoles } = useQuery({
+    queryKey: ['available-roles', user.portal, roleAction],
+    queryFn: () => roleAction === 'add' && user.portal ? fetchAvailableRoles(user.portal) : Promise.resolve([]),
+    enabled: roleAction === 'add' && !!user.portal,
+  });
 
-  // Get all roles for this user by portal
-  const userRolesByPortal: PortalRolesMap = {
-    [user.portal as string]: user.roles,
-  };
+  // Reset selected roles when changing action type
+  useEffect(() => {
+    setSelectedRoles([]);
+  }, [roleAction]);
 
   const handleRoleToggle = (role: string) => {
     setSelectedRoles(current => 
@@ -54,11 +55,75 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
     handleSchedule();
   };
 
-  const handleSchedule = async () => {
-    if (!date || !selectedPortal || selectedRoles.length === 0) {
+  const handleExecuteNow = async () => {
+    if (selectedRoles.length === 0) {
       toast({
         title: "Missing information",
-        description: "Please select date, time, portal, and at least one role",
+        description: "Please select at least one role",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if token exists
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast({
+        title: "Authentication Required",
+        description: "You need to login before executing role changes",
+        variant: "destructive"
+      });
+      setLoginDialogOpen(true);
+      return;
+    }
+
+    setIsExecutingNow(true);
+
+    try {
+      const response = await executeRoleChange(
+        user.id,
+        user.name,
+        user.portal,
+        roleAction,
+        selectedRoles
+      );
+
+      toast({
+        title: "Role Change Executed",
+        description: `Role changes applied successfully: ${response.message}`,
+      });
+    } catch (error) {
+      console.error('Execution error:', error);
+      
+      // Check if the error is due to token expiration or authentication issues
+      if (error instanceof Error && 
+         (error.message.includes('Token has expired') || 
+          error.message.includes('Token is invalid') || 
+          error.message.includes('Token is missing'))) {
+        
+        toast({
+          title: "Authentication Required",
+          description: "Your session has expired. Please login again.",
+          variant: "destructive"
+        });
+        setLoginDialogOpen(true);
+      } else {
+        toast({
+          title: "Error Executing Role Change",
+          description: error instanceof Error ? error.message : "An unknown error occurred",
+          variant: "destructive"
+        });
+      }
+    } finally {
+      setIsExecutingNow(false);
+    }
+  };
+
+  const handleSchedule = async () => {
+    if (!date || selectedRoles.length === 0) {
+      toast({
+        title: "Missing information",
+        description: "Please select date, time, and at least one role",
         variant: "destructive"
       });
       return;
@@ -87,7 +152,7 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
       const response = await scheduleRoleChange({
         userId: user.id,
         userName: user.name,
-        portal: selectedPortal,
+        portal: user.portal,
         scheduledTime: scheduledTime.toISOString(),
         action: roleAction,
         roles: selectedRoles
@@ -124,6 +189,11 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
     }
   };
 
+  // Determine which roles to display based on the action
+  const rolesToDisplay = roleAction === 'remove' 
+    ? user.roles 
+    : (availableRoles || []);
+
   return (
     <>
       <Card className="bg-teleport-gray border-slate-800">
@@ -131,26 +201,12 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
           <CardTitle className="text-white">Schedule Role Changes</CardTitle>
           <CardDescription>
             User: <span className="font-semibold">{user.name}</span>
+            {user.portal && <span> • Portal: <span className="font-semibold">{user.portal}</span></span>}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="portal" className="text-white">Portal</Label>
-                <select 
-                  id="portal"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={selectedPortal || ''}
-                  onChange={(e) => setSelectedPortal(e.target.value)}
-                >
-                  <option value="">Select Portal</option>
-                  {userPortals.map(portal => (
-                    <option key={portal} value={portal}>{portal}</option>
-                  ))}
-                </select>
-              </div>
-
               <div>
                 <Label className="text-white">Action</Label>
                 <div className="flex space-x-4 mt-2">
@@ -176,70 +232,101 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
               </div>
 
               <div>
-                <Label className="text-white mb-2 block">Select Roles</Label>
+                <Label className="text-white mb-2 block">
+                  {roleAction === 'remove' ? 'Select Roles to Remove' : 'Select Roles to Add'}
+                </Label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 max-h-48 overflow-y-auto bg-slate-800 rounded-md">
-                  {selectedPortal && userRolesByPortal[selectedPortal]?.map(role => (
-                    <div key={role} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={`role-${role}`} 
-                        checked={selectedRoles.includes(role)}
-                        onCheckedChange={() => handleRoleToggle(role)}
-                      />
-                      <Label 
-                        htmlFor={`role-${role}`}
-                        className="text-sm text-gray-300"
-                      >
-                        {role}
-                      </Label>
-                    </div>
-                  ))}
-                  {(!selectedPortal || !userRolesByPortal[selectedPortal]) && (
+                  {isLoadingRoles && roleAction === 'add' ? (
+                    <div className="col-span-3 text-center p-4 text-gray-400">Loading available roles...</div>
+                  ) : rolesToDisplay.length > 0 ? (
+                    rolesToDisplay.map(role => (
+                      <div key={role} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`role-${role}`} 
+                          checked={selectedRoles.includes(role)}
+                          onCheckedChange={() => handleRoleToggle(role)}
+                        />
+                        <Label 
+                          htmlFor={`role-${role}`}
+                          className="text-sm text-gray-300"
+                        >
+                          {role}
+                        </Label>
+                      </div>
+                    ))
+                  ) : (
                     <div className="text-gray-400 col-span-3 text-center p-2">
-                      Select a portal to view available roles
+                      {roleAction === 'add' 
+                        ? "No additional roles available to add" 
+                        : "No roles assigned to remove"}
                     </div>
                   )}
                 </div>
+              </div>
+
+              <div>
+                <Button
+                  variant="default"
+                  className="w-full"
+                  disabled={isExecutingNow || selectedRoles.length === 0}
+                  onClick={handleExecuteNow}
+                >
+                  {isExecutingNow ? "Applying Changes..." : `Apply ${roleAction === 'add' ? "New" : "Removal of"} Roles Now`}
+                </Button>
               </div>
             </div>
 
             <div className="space-y-4">
               <div>
-                <Label className="text-white mb-2 block">Schedule Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, 'PPP') : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+                <Label className="text-white mb-2 block">Schedule for Later</Label>
+                <div className="p-4 bg-slate-800 rounded-md space-y-4">
+                  <div>
+                    <Label className="text-white mb-2 block">Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !date && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {date ? format(date, 'PPP') : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={date}
+                          onSelect={setDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
 
-              <div>
-                <Label htmlFor="time" className="text-white">Schedule Time</Label>
-                <div className="flex items-center mt-2">
-                  <Clock className="mr-2 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="time"
-                    type="time"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    className="flex-1"
-                  />
+                  <div>
+                    <Label htmlFor="time" className="text-white">Time</Label>
+                    <div className="flex items-center mt-2">
+                      <Clock className="mr-2 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="time"
+                        type="time"
+                        value={time}
+                        onChange={(e) => setTime(e.target.value)}
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={handleSchedule} 
+                    className="w-full"
+                    disabled={isSubmitting || !date || selectedRoles.length === 0}
+                  >
+                    {isSubmitting ? 'Scheduling...' : 'Schedule Role Change'}
+                  </Button>
                 </div>
               </div>
             </div>
@@ -248,12 +335,6 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
         <CardFooter className="flex justify-end space-x-2">
           <Button variant="secondary" onClick={() => setSelectedRoles([])}>
             Clear Selection
-          </Button>
-          <Button 
-            onClick={handleSchedule} 
-            disabled={isSubmitting || !date || !selectedPortal || selectedRoles.length === 0}
-          >
-            {isSubmitting ? 'Scheduling...' : 'Schedule Role Change'}
           </Button>
         </CardFooter>
       </Card>
