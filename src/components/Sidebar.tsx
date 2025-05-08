@@ -21,6 +21,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { fetchUsersFromSSH } from '@/lib/api';
+import { LoginDialog } from '@/components/LoginDialog';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ export const Sidebar = ({
 }: SidebarProps) => {
   const { toast } = useToast();
   const [fetchDialogOpen, setFetchDialogOpen] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [selectedPortal, setSelectedPortal] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -51,6 +53,23 @@ export const Sidebar = ({
   };
 
   const handleFetchData = () => {
+    // Check if the user is authenticated
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast({
+        title: "Authentication Required",
+        description: "You need to login before fetching user data",
+        variant: "destructive"
+      });
+      setLoginDialogOpen(true);
+      return;
+    }
+    
+    setFetchDialogOpen(true);
+  };
+
+  const handleLoginSuccess = () => {
+    // After successful login, open the fetch dialog
     setFetchDialogOpen(true);
   };
 
@@ -77,11 +96,27 @@ export const Sidebar = ({
         onFetchData();
       }
     } catch (error) {
-      toast({
-        title: "Error Fetching Users",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive"
-      });
+      console.error("Error fetching users:", error);
+      
+      // Check if the error is due to token expiration or authentication issues
+      if (error instanceof Error && 
+         (error.message.includes('Token has expired') || 
+          error.message.includes('Token is invalid') || 
+          error.message.includes('Token is missing'))) {
+        
+        toast({
+          title: "Authentication Required",
+          description: "Your session has expired. Please login again.",
+          variant: "destructive"
+        });
+        setLoginDialogOpen(true);
+      } else {
+        toast({
+          title: "Error Fetching Users",
+          description: error instanceof Error ? error.message : "An unknown error occurred",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -244,6 +279,13 @@ export const Sidebar = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Login Dialog */}
+      <LoginDialog 
+        isOpen={loginDialogOpen} 
+        onClose={() => setLoginDialogOpen(false)}
+        onSuccess={handleLoginSuccess}
+      />
     </>
   );
 };
