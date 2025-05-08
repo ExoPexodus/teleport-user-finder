@@ -130,7 +130,7 @@ const ScheduledJobs = () => {
                       </div>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Portals</SelectItem>
+                      <SelectItem value="all-portals">All Portals</SelectItem>
                       {uniquePortals.map(portal => (
                         <SelectItem key={portal} value={portal}>{portal}</SelectItem>
                       ))}
