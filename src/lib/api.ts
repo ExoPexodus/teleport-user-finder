@@ -94,20 +94,6 @@ export async function fetchUsersFromSSH(client: string): Promise<{ success: bool
   return response.json();
 }
 
-// Interface for role change schedule
-export interface RoleChangeSchedule {
-  id?: string;
-  userId: string;
-  userName: string;
-  portal: string;
-  scheduledTime: string;
-  action: 'add' | 'remove';
-  roles: string[];
-  status?: string;
-  executedAt?: string;
-  result?: string;
-}
-
 // Function to schedule a role change
 export async function scheduleRoleChange(schedule: RoleChangeSchedule): Promise<{ success: boolean; message: string }> {
   const token = localStorage.getItem('token');

@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 interface SearchBarProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
+  placeholder?: string;
 }
 
-export const SearchBar = ({ searchTerm, setSearchTerm }: SearchBarProps) => {
+export const SearchBar = ({ searchTerm, setSearchTerm, placeholder = "Search users by name or role..." }: SearchBarProps) => {
   return (
     <div className="relative">
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -16,7 +17,7 @@ export const SearchBar = ({ searchTerm, setSearchTerm }: SearchBarProps) => {
       </div>
       <Input
         type="text"
-        placeholder="Search users by name or role..."
+        placeholder={placeholder}
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         className="pl-10 py-2 bg-teleport-gray border border-slate-700 rounded-md w-full focus:ring-teleport-blue focus:border-teleport-blue text-white"
