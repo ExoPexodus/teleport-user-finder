@@ -13,6 +13,7 @@ from config import DEBUG, SSH_HOSTS, SSH_PORT, SSH_USER
 # Import route modules
 from routes.user_routes import user_routes
 from routes.teleport_routes import teleport_routes
+from routes.auth_routes import auth_routes
 
 # Import the task scheduler
 from scheduler import scheduler
@@ -28,6 +29,7 @@ bcrypt = Bcrypt(app)
 # Register blueprints (routes)
 app.register_blueprint(user_routes)
 app.register_blueprint(teleport_routes)
+app.register_blueprint(auth_routes)
 
 # Log the SSH configuration (excluding sensitive data)
 logger.info(f"Loaded SSH configuration: hosts={SSH_HOSTS}, port={SSH_PORT}, user={SSH_USER}")

@@ -33,6 +33,11 @@ services:
       - SSH_PORT=${SSH_PORT:-22}
       - SSH_USER=${SSH_USER:-root}
       - SSH_KEY_PATH=${SSH_KEY_PATH:-/app/ssh_key}
+      # Keycloak configuration
+      - KEYCLOAK_URL=${KEYCLOAK_URL:-http://keycloak:8080}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-teleport}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-teleport-client}
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
     volumes:
       - ${SSH_KEY_LOCAL_PATH:-./ssh_key}:${SSH_KEY_PATH:-/app/ssh_key}:ro
     depends_on:
