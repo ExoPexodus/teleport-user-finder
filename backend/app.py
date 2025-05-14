@@ -8,6 +8,7 @@ from flask_bcrypt import Bcrypt
 # Import utility modules
 from utils.logging_config import setup_logging
 from utils.auth import token_required
+from utils.check_migrations import run_migrations
 from config import DEBUG, SSH_HOSTS, SSH_PORT, SSH_USER
 
 # Import route modules
@@ -39,9 +40,10 @@ def health_check():
     """Health check endpoint."""
     return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
 
-# Start the scheduler when the app starts
-# Replace deprecated @app.before_first_request with proper startup function
+# Run migrations before app starts
 with app.app_context():
+    logger.info("Running database migrations...")
+    run_migrations()
     logger.info("Starting the task scheduler")
     scheduler.start()
 
