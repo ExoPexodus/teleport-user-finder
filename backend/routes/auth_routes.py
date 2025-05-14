@@ -1,7 +1,7 @@
 
 from flask import Blueprint, request, jsonify
 import logging
-from utils.keycloak_auth import login_user, token_required, admin_required
+from utils.keycloak_auth import login_user, token_required, role_required
 from utils.logging_config import setup_logging
 from utils.admin_sync import sync_admin_user
 
@@ -48,19 +48,34 @@ def login():
 def get_profile():
     """Get user profile from token"""
     user_data = request.user
+    admin_user = request.admin_user
     
     # Extract relevant user information
     profile = {
         'username': user_data.get('preferred_username'),
         'email': user_data.get('email'),
         'name': user_data.get('name'),
-        'roles': user_data.get('realm_access', {}).get('roles', [])
+        'roles': admin_user.roles.split(',') if admin_user.roles else [],
+        'givenName': admin_user.given_name,
+        'familyName': admin_user.family_name
     }
     
     return jsonify(profile), 200
 
 @auth_routes.route('/auth/admin-check', methods=['GET'])
-@admin_required
+@role_required('admin')
 def admin_check():
     """Test endpoint for admin access"""
     return jsonify({'message': 'You have admin access!'}), 200
+
+@auth_routes.route('/auth/limited-user-check', methods=['GET'])
+@role_required('limited_user')
+def limited_user_check():
+    """Test endpoint for limited user access"""
+    return jsonify({'message': 'You have limited user access!'}), 200
+
+@auth_routes.route('/auth/multi-role-check', methods=['GET'])
+@role_required(['admin', 'power_user'])
+def multi_role_check():
+    """Test endpoint that allows multiple roles to access"""
+    return jsonify({'message': 'You have either admin or power user access!'}), 200

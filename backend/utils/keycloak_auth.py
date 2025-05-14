@@ -7,6 +7,8 @@ from functools import wraps
 import os
 from jose import jwt
 from config import KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
+from utils.db import get_db_session
+from models.admin_user import AdminUser
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +65,23 @@ def verify_token(token):
         logger.error(f"Token verification failed: {e}")
         return None
 
+def get_admin_user_from_token(token_data):
+    """Get AdminUser object from database based on Keycloak token data"""
+    if not token_data or 'sub' not in token_data:
+        return None
+        
+    keycloak_id = token_data['sub']
+    session = get_db_session()
+    
+    try:
+        admin_user = session.query(AdminUser).filter_by(keycloak_id=keycloak_id).first()
+        return admin_user
+    except Exception as e:
+        logger.error(f"Error fetching admin user: {e}")
+        return None
+    finally:
+        session.close()
+
 def token_required(f):
     """Decorator for routes that require token authentication"""
     @wraps(f)
@@ -84,9 +103,38 @@ def token_required(f):
             
         # Add user data to the request context
         request.user = user_data
+        
+        # Get admin user from database
+        admin_user = get_admin_user_from_token(user_data)
+        if not admin_user:
+            return jsonify({'message': 'Admin user not found!'}), 403
+            
+        request.admin_user = admin_user
         return f(*args, **kwargs)
     
     return decorated
+
+def role_required(required_roles):
+    """
+    Decorator for routes that require specific roles
+    Can accept a single role string or a list of roles (any match grants access)
+    """
+    def decorator(f):
+        @wraps(f)
+        @token_required
+        def decorated(*args, **kwargs):
+            admin_user = request.admin_user
+            
+            if isinstance(required_roles, list):
+                if not admin_user.has_any_role(required_roles):
+                    return jsonify({'message': f'Required roles: {", ".join(required_roles)}!'}), 403
+            else:
+                if not admin_user.has_role(required_roles):
+                    return jsonify({'message': f'Required role: {required_roles}!'}), 403
+                    
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
 
 def admin_required(f):
     """Decorator for routes that require admin role"""

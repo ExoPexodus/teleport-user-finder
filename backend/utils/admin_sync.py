@@ -33,9 +33,18 @@ def sync_admin_user(keycloak_data):
         given_name = keycloak_data.get('given_name', '')
         family_name = keycloak_data.get('family_name', '')
         
-        # Get roles from realm_access
+        # Get roles from realm_access and other possible sources in Keycloak
         roles_list = keycloak_data.get('realm_access', {}).get('roles', [])
-        roles = ','.join(roles_list) if roles_list else ''
+        
+        # You can also add client-specific roles if needed
+        client_id = "your-client-id"  # Replace with your actual client ID if needed
+        client_roles = keycloak_data.get('resource_access', {}).get(client_id, {}).get('roles', [])
+        if client_roles:
+            roles_list.extend(client_roles)
+            
+        # Filter out default roles that shouldn't affect permissions
+        filtered_roles = [r for r in roles_list if r not in ['uma_authorization', 'offline_access', 'default-roles']]
+        roles = ','.join(filtered_roles) if filtered_roles else ''
         
         if admin_user:
             # Update existing admin user
@@ -45,7 +54,7 @@ def sync_admin_user(keycloak_data):
             admin_user.given_name = given_name
             admin_user.family_name = family_name
             admin_user.last_login = datetime.utcnow()
-            logger.info(f"Updated admin user: {username}")
+            logger.info(f"Updated admin user: {username}, roles: {roles}")
         else:
             # Create new admin user
             admin_user = AdminUser(
@@ -60,7 +69,7 @@ def sync_admin_user(keycloak_data):
                 last_login=datetime.utcnow()
             )
             session.add(admin_user)
-            logger.info(f"Created new admin user: {username}")
+            logger.info(f"Created new admin user: {username}, roles: {roles}")
         
         session.commit()
         return admin_user

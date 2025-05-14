@@ -39,11 +39,28 @@ export const LoginDialog = ({ isOpen, onClose, onSuccess }: LoginDialogProps) =>
 
     setIsLoading(true);
     try {
-      await login(username, password);
-      toast({
-        title: "Login successful",
-        description: "You're now authenticated to access SSH features."
-      });
+      const response = await login(username, password);
+      // Check if there are any roles in the response
+      const decodedToken = response.decoded_token || {};
+      const roles = decodedToken.realm_access?.roles || [];
+      
+      // Show appropriate message based on roles
+      if (roles.includes('admin')) {
+        toast({
+          title: "Login successful",
+          description: "You're now authenticated with full admin access."
+        });
+      } else if (roles.includes('limited_user')) {
+        toast({
+          title: "Login successful",
+          description: "You're now authenticated with limited access."
+        });
+      } else {
+        toast({
+          title: "Login successful",
+          description: "You're now authenticated."
+        });
+      }
       onSuccess();
       onClose();
     } catch (error) {
