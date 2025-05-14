@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify
 import logging
 from utils.keycloak_auth import login_user, token_required, admin_required
 from utils.logging_config import setup_logging
+from utils.admin_sync import sync_admin_user
 
 logger = setup_logging()
 
@@ -27,6 +28,17 @@ def login():
     if not token_data:
         logger.warning(f"Failed login attempt for user: {username}")
         return jsonify({'message': 'Invalid username or password'}), 401
+    
+    # Get the decoded token data from the access_token
+    token_info = token_data.get('decoded_token')
+    if not token_info:
+        logger.warning(f"No decoded token found for user: {username}")
+        return jsonify({'message': 'Failed to decode token'}), 500
+        
+    # Sync user with local database
+    admin_user = sync_admin_user(token_info)
+    if not admin_user:
+        logger.warning(f"Failed to sync admin user: {username}")
     
     logger.info(f"Successful login for user: {username}")
     return jsonify(token_data), 200

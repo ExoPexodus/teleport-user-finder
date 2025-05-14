@@ -117,7 +117,15 @@ def login_user(username, password):
         response = requests.post(url, data=payload)
         response.raise_for_status()
         
-        return response.json()
+        token_data = response.json()
+        
+        # Add decoded token to response
+        access_token = token_data.get('access_token')
+        if access_token:
+            decoded_token = verify_token(access_token)
+            token_data['decoded_token'] = decoded_token
+        
+        return token_data
     except Exception as e:
         logger.error(f"Login failed: {e}")
         return None
