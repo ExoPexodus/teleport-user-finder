@@ -1,3 +1,4 @@
+
 import { User } from '@/types/user';
 import { RoleChangeSchedule } from '@/types/schedule';
 
@@ -49,7 +50,7 @@ export async function deleteUsers(userIds: string[]): Promise<{ success: boolean
 }
 
 export async function login(username: string, password: string): Promise<{ token: string }> {
-  const response = await fetch('/teleport/login', {
+  const response = await fetch('/auth/login', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -64,7 +65,12 @@ export async function login(username: string, password: string): Promise<{ token
   
   const data = await response.json();
   // Store the token in localStorage for future requests
-  localStorage.setItem('token', data.token);
+  localStorage.setItem('token', data.access_token || data.token);
+  
+  // Store user roles in localStorage if present in the decoded token
+  if (data.decoded_token && data.decoded_token.realm_access && data.decoded_token.realm_access.roles) {
+    localStorage.setItem('user_roles', JSON.stringify(data.decoded_token.realm_access.roles));
+  }
   
   return data;
 }

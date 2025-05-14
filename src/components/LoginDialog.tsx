@@ -40,9 +40,9 @@ export const LoginDialog = ({ isOpen, onClose, onSuccess }: LoginDialogProps) =>
     setIsLoading(true);
     try {
       const response = await login(username, password);
-      // Check if there are any roles in the response
-      const decodedToken = response.decoded_token || {};
-      const roles = decodedToken.realm_access?.roles || [];
+      
+      // Get roles from localStorage if they've been set from the API response
+      const roles = JSON.parse(localStorage.getItem('user_roles') || '[]');
       
       // Show appropriate message based on roles
       if (roles.includes('admin')) {
