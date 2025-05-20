@@ -144,12 +144,20 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
           mediaRecorder.onstop = () => {
             // Update the last user message to show recording stopped
             setMessages(prev => {
-              const updated = [...prev];
-              const lastUserMsgIndex = updated.findLastIndex(msg => msg.role === 'user' && msg.content === '🎤 Recording...');
-              if (lastUserMsgIndex !== -1) {
-                updated[lastUserMsgIndex].content = '🎤 Voice message sent';
+              const newMessages = [...prev];
+              // Find the last recording message using a for loop instead of findLastIndex
+              let lastRecordingIndex = -1;
+              for (let i = newMessages.length - 1; i >= 0; i--) {
+                if (newMessages[i].role === 'user' && newMessages[i].content === '🎤 Recording...') {
+                  lastRecordingIndex = i;
+                  break;
+                }
               }
-              return updated;
+              
+              if (lastRecordingIndex !== -1) {
+                newMessages[lastRecordingIndex].content = '🎤 Voice message sent';
+              }
+              return newMessages;
             });
             
             // Stop all audio tracks
