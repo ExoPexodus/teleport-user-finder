@@ -10,8 +10,12 @@ services:
       - "80:80"
     depends_on:
       - backend
+      - ai-service
     networks:
       - teleport-network
+    environment:
+      - VITE_API_USERNAME=${AUTH_USERNAME:-admin}
+      - VITE_API_PASSWORD=${AUTH_PASSWORD:-password}
 
   backend:
     build:
@@ -41,6 +45,18 @@ services:
     # Not exposing backend port to host machine, only accessible within Docker network
     networks:
       - teleport-network
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-your_gemini_api_key}
+      - BACKEND_URL=http://backend:5000
+    networks:
+      - teleport-network
+    ports:
+      - "8000:8000"
 
   postgres:
     image: postgres:15
