@@ -3,10 +3,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Install system dependencies for building packages including gcc compiler
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     portaudio19-dev \
     python3-dev \
+    gcc \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
