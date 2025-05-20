@@ -33,13 +33,7 @@ def get_users():
                 'lastLogin': user.last_login.isoformat() if user.last_login else None,
                 'status': user.status,
                 'manager': user.manager,
-                'portal': user.portal,
-                # Add Keycloak fields
-                'keycloakId': user.keycloak_id,
-                'email': user.email,
-                'givenName': user.given_name,
-                'familyName': user.family_name,
-                'preferredUsername': user.preferred_username
+                'portal': user.portal
             }
             result.append(user_dict)
         
@@ -73,16 +67,6 @@ def update_user(user_id):
         user.manager = data['manager']
         user.portal = data['portal']
         
-        # Update Keycloak fields if present
-        if 'email' in data:
-            user.email = data['email']
-        if 'givenName' in data:
-            user.given_name = data['givenName']
-        if 'familyName' in data:
-            user.family_name = data['familyName']
-        if 'preferredUsername' in data:
-            user.preferred_username = data['preferredUsername']
-        
         session.commit()
         
         return jsonify({"success": True, "message": "User updated successfully"})
@@ -93,4 +77,31 @@ def update_user(user_id):
     finally:
         session.close()
 
-# ... keep existing code (delete_users function) the same
+@user_routes.route('/api/users', methods=['DELETE'])
+def delete_users():
+    """Delete multiple users by IDs."""
+    data = request.json
+    user_ids = data.get('ids', [])
+    
+    if not user_ids:
+        return jsonify({"success": False, "message": "No user IDs provided"}), 400
+        
+    session = get_db_session()
+    
+    try:
+        deleted_count = session.query(User).filter(User.id.in_(user_ids)).delete(synchronize_session='fetch')
+        session.commit()
+        
+        if deleted_count > 0:
+            return jsonify({
+                "success": True, 
+                "message": f"{deleted_count} users deleted successfully", 
+                "deleted_ids": user_ids
+            })
+        return jsonify({"success": False, "message": "No users found with the provided IDs"}), 404
+    except Exception as e:
+        session.rollback()
+        logging.error(f"Error deleting users {user_ids}: {e}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()

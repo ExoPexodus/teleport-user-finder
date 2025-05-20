@@ -16,39 +16,10 @@ const RoleScheduler = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Fetch all users
-  const { data: allUsers, isLoading, error, refetch } = useQuery({
+  const { data: allUsers, isLoading, error } = useQuery({
     queryKey: ['users'],
     queryFn: () => fetchUsers(),
   });
-
-  // Function to export users as CSV
-  const handleExportCsv = () => {
-    if (!allUsers || allUsers.length === 0) return;
-    
-    // Create CSV content
-    const headers = ['Name', 'Portal', 'Roles'];
-    const rows = allUsers.map(user => [
-      user.name,
-      user.portal,
-      user.roles.join(', ')
-    ]);
-    
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
-    
-    // Create and download the file
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `users-${new Date().toISOString().slice(0, 10)}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   // Filter users by search term
   const filteredUsers = (allUsers || []).filter(user => 
@@ -61,9 +32,7 @@ const RoleScheduler = () => {
         isOpen={sidebarOpen} 
         setIsOpen={setSidebarOpen} 
         users={allUsers || []}
-        currentPage="scheduler"
-        onFetchData={refetch}
-        onExportCsv={handleExportCsv}
+        currentPage="scheduler" 
       />
       <div className={`transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <Header />

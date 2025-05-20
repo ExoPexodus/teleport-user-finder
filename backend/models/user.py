@@ -15,13 +15,6 @@ class User(Base):
     status = Column(String(20), nullable=True)
     manager = Column(String(255), nullable=True)
     portal = Column(String(50), nullable=True)
-    
-    # Keycloak specific fields
-    keycloak_id = Column(String(50), nullable=True, unique=True)
-    email = Column(String(255), nullable=True)
-    given_name = Column(String(255), nullable=True)
-    family_name = Column(String(255), nullable=True)
-    preferred_username = Column(String(255), nullable=True)
 
     __table_args__ = (
         CheckConstraint(status.in_(['active', 'inactive', 'pending']), name='check_status'),

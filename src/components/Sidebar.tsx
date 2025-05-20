@@ -1,227 +1,299 @@
+
 import React, { useState } from 'react';
+import { User } from '@/types/user';
+import { Link } from 'react-router-dom';
+import { Clock, Download, Users, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { LoginDialog } from '@/components/LoginDialog';
-import { useAuth } from '@/contexts/AuthContext';
-import { Link, useLocation } from 'react-router-dom';
 import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Database, 
-  Download, 
-  Home, 
-  User, 
-  Clock,
-  Server
-} from 'lucide-react';
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogFooter,
+  DialogDescription
+} from '@/components/ui/dialog';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { fetchUsersFromSSH } from '@/lib/api';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
-import { TeleportLoginDialog } from '@/components/TeleportLoginDialog';
+import { LoginDialog } from '@/components/LoginDialog';
 
 interface SidebarProps {
   isOpen: boolean;
-  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  users: any[];
+  setIsOpen: (isOpen: boolean) => void;
+  users: User[];
+  currentPage?: string;
   onFetchData?: () => void;
   onExportCsv?: () => void;
-  currentPage?: string;
 }
 
-export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, currentPage }: SidebarProps) => {
-  const [showLoginDialog, setShowLoginDialog] = useState(false);
-  const [showTeleportLoginDialog, setShowTeleportLoginDialog] = useState(false);
-  const [selectedPortal, setSelectedPortal] = useState<string | null>(null);
-  const [isFetching, setIsFetching] = useState(false);
+export const Sidebar = ({ 
+  isOpen, 
+  setIsOpen, 
+  users, 
+  currentPage = 'home',
+  onFetchData,
+  onExportCsv 
+}: SidebarProps) => {
   const { toast } = useToast();
-  const { isAuthenticated, user } = useAuth();
-  const location = useLocation();
+  const [fetchDialogOpen, setFetchDialogOpen] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [selectedPortal, setSelectedPortal] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
   
-  // Get unique portals from user data
-  const portals = [...new Set(users.map(user => user.portal))].filter(Boolean);
+  const portalOptions = ['kocharsoft', 'maxicus', 'igzy'];
   
-  const navItems = [
-    { path: '/', label: 'Dashboard', icon: Home },
-    { path: '/profile', label: 'My Profile', icon: User },
-    { path: '/scheduler', label: 'Role Scheduler', icon: Database },
-    { path: '/scheduled-jobs', label: 'Scheduled Jobs', icon: Clock },
-  ];
+  const toggleSidebar = () => {
+    setIsOpen(!isOpen);
+  };
 
-  const handleFetchFromPortal = async (portal: string) => {
-    if (!isAuthenticated) {
-      setShowLoginDialog(true);
-      return;
-    }
-    
-    // Store the selected portal for use after teleport login if needed
-    setSelectedPortal(portal);
-    
-    setIsFetching(true);
-    try {
-      const result = await fetchUsersFromSSH(portal);
-      onFetchData && await onFetchData();
+  const handleFetchData = () => {
+    // Check if the user is authenticated
+    const token = localStorage.getItem('token');
+    if (!token) {
       toast({
-        title: "Users fetched",
-        description: result.message || `Users from ${portal} fetched successfully.`,
-      });
-    } catch (error) {
-      console.error('Error fetching users from portal:', error);
-      
-      // Check if the error is due to teleport authentication
-      if (error instanceof Error && error.message.includes('Teleport authentication required')) {
-        setShowTeleportLoginDialog(true);
-        return;
-      }
-      
-      toast({
-        title: "Fetch failed",
-        description: error instanceof Error ? error.message : `Failed to fetch users from ${portal}.`,
+        title: "Authentication Required",
+        description: "You need to login before fetching user data",
         variant: "destructive"
       });
-    } finally {
-      setIsFetching(false);
-    }
-  };
-  
-  const handleExportCsv = () => {
-    if (!isAuthenticated) {
-      setShowLoginDialog(true);
+      setLoginDialogOpen(true);
       return;
     }
     
-    if (!onExportCsv) return;
-    
-    onExportCsv();
+    setFetchDialogOpen(true);
   };
 
-  const handleTeleportLoginSuccess = async () => {
-    setShowTeleportLoginDialog(false);
-    // Retry fetching with the selected portal if it exists
-    if (selectedPortal) {
-      await handleFetchFromPortal(selectedPortal);
+  const handleLoginSuccess = () => {
+    // After successful login, open the fetch dialog
+    setFetchDialogOpen(true);
+  };
+
+  const handleFetchUsersFromSSH = async () => {
+    if (!selectedPortal) {
+      toast({
+        title: "Portal Required",
+        description: "Please select a portal to fetch users from",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await fetchUsersFromSSH(selectedPortal);
+      toast({
+        title: "Users Fetched",
+        description: result.message || "Users fetched successfully"
+      });
+      // Close dialog and refresh data
+      setFetchDialogOpen(false);
+      if (onFetchData) {
+        onFetchData();
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      
+      // Check if the error is due to token expiration or authentication issues
+      if (error instanceof Error && 
+         (error.message.includes('Token has expired') || 
+          error.message.includes('Token is invalid') || 
+          error.message.includes('Token is missing'))) {
+        
+        toast({
+          title: "Authentication Required",
+          description: "Your session has expired. Please login again.",
+          variant: "destructive"
+        });
+        setLoginDialogOpen(true);
+      } else {
+        toast({
+          title: "Error Fetching Users",
+          description: error instanceof Error ? error.message : "An unknown error occurred",
+          variant: "destructive"
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (onExportCsv) {
+      onExportCsv();
+    } else {
+      // Create CSV content from all users if no callback is provided
+      if (users && users.length > 0) {
+        const headers = ["ID", "Name", "Roles", "Status", "Created Date", "Last Login", "Manager", "Portal"];
+        const userRows = users.map(user => [
+          user.id,
+          `"${user.name}"`,
+          `"${user.roles.join("; ")}"`,
+          user.status,
+          new Date(user.createdDate).toLocaleDateString(),
+          user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never",
+          user.manager ? `"${user.manager}"` : "None",
+          user.portal ? `"${user.portal}"` : "None"
+        ]);
+        
+        const csvContent = [
+          headers.join(","),
+          ...userRows.map(row => row.join(","))
+        ].join("\n");
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `all_users_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast({
+          title: "CSV Downloaded",
+          description: `${users.length} users exported to CSV successfully.`
+        });
+      } else {
+        toast({
+          title: "No Data Available",
+          description: "There are no users to export.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
   return (
     <>
-      <div className={`fixed top-0 left-0 h-full bg-teleport-gray border-r border-slate-800 shadow-lg transition-all duration-300 z-10 ${isOpen ? "w-64" : "w-16"}`}>
-        <div className="flex flex-col h-full">
-          <div className="p-4 flex justify-between items-center border-b border-slate-800">
-            {isOpen && (
-              <span className="text-lg font-bold text-white">Teleport</span>
+      <aside 
+        className={`fixed top-0 left-0 h-full z-20 bg-teleport-gray transition-all duration-300 ease-in-out border-r border-slate-800 shadow-xl 
+                  ${isOpen ? 'w-64' : 'w-16'}`}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-slate-800">
+          {isOpen && <span className="text-white font-bold">Teleport Admin</span>}
+          <button 
+            onClick={toggleSidebar} 
+            className="text-white hover:text-gray-300 rounded-full p-2 hover:bg-slate-700"
+          >
+            {isOpen ? (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             )}
+          </button>
+        </div>
+
+        <nav className="flex flex-col p-4">
+          <Link 
+            to="/" 
+            className={`flex items-center space-x-2 p-2 rounded mb-2 hover:bg-slate-700 transition-colors
+                        ${currentPage === 'home' ? 'bg-slate-700' : ''}`}
+          >
+            <Users size={20} className="text-white" />
+            {isOpen && <span className="text-white">User Management</span>}
+          </Link>
+          
+          <Link 
+            to="/scheduler" 
+            className={`flex items-center space-x-2 p-2 rounded mb-2 hover:bg-slate-700 transition-colors
+                        ${currentPage === 'scheduler' ? 'bg-slate-700' : ''}`}
+          >
+            <Clock size={20} className="text-white" />
+            {isOpen && <span className="text-white">Role Scheduler</span>}
+          </Link>
+          
+          <Link 
+            to="/scheduled-jobs" 
+            className={`flex items-center space-x-2 p-2 rounded mb-2 hover:bg-slate-700 transition-colors
+                        ${currentPage === 'scheduled-jobs' ? 'bg-slate-700' : ''}`}
+          >
+            <Calendar size={20} className="text-white" />
+            {isOpen && <span className="text-white">Scheduled Jobs</span>}
+          </Link>
+
+          <div className="mt-4 border-t border-slate-700 pt-4 space-y-2">
             <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => setIsOpen(!isOpen)}
-              className="text-white hover:bg-teleport-blue/20"
+              variant="outline" 
+              size="sm"
+              className={`w-full justify-start text-white border-slate-700 hover:bg-slate-700 hover:text-white ${!isOpen && 'px-2'}`}
+              onClick={handleFetchData}
             >
-              {isOpen ? <ChevronLeft /> : <ChevronRight />}
+              <Users size={16} className={`${isOpen ? 'mr-2' : 'mx-auto'}`} />
+              {isOpen && <span>Fetch Users</span>}
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              className={`w-full justify-start text-white border-slate-700 hover:bg-slate-700 hover:text-white ${!isOpen && 'px-2'}`}
+              onClick={handleExportCsv}
+            >
+              <Download size={16} className={`${isOpen ? 'mr-2' : 'mx-auto'}`} />
+              {isOpen && <span>Export CSV</span>}
             </Button>
           </div>
-          
-          <div className="p-4 flex flex-col flex-grow">
-            <nav className="space-y-2">
-              {navItems.map((item) => {
-                const isActive = location.pathname === item.path;
-                const Icon = item.icon;
-                
-                return (
-                  <Link 
-                    key={item.path} 
-                    to={item.path}
-                    className={`flex items-center p-2 rounded-md transition-colors ${
-                      isActive 
-                        ? "bg-teleport-blue text-white" 
-                        : "text-gray-300 hover:bg-teleport-blue/20"
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    {isOpen && <span className="ml-3">{item.label}</span>}
-                  </Link>
-                );
-              })}
-            </nav>
-            
-            <div className="mt-auto space-y-2">
-              {/* Fetch users from portal dropdown */}
-              {portals.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={`w-full justify-start ${isOpen ? "" : "px-0 justify-center"}`}
-                      disabled={isFetching}
-                    >
-                      {isFetching ? (
-                        <Server className="h-5 w-5 animate-pulse" />
-                      ) : (
-                        <Server className="h-5 w-5" />
-                      )}
-                      {isOpen && <span className="ml-2 truncate">Fetch from Portal</span>}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="bg-teleport-gray border-slate-700 text-white">
-                    {portals.map(portal => (
-                      <DropdownMenuItem
-                        key={portal}
-                        onClick={() => handleFetchFromPortal(portal)}
-                        className="cursor-pointer"
-                      >
-                        {portal}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-              
-              {onExportCsv && (
-                <Button
-                  variant="outline"
-                  className={`w-full justify-start ${isOpen ? "" : "px-0 justify-center"}`}
-                  onClick={handleExportCsv}
-                >
-                  <Download className="h-5 w-5" />
-                  {isOpen && <span className="ml-2">Export CSV</span>}
-                </Button>
-              )}
-            </div>
-          </div>
-          
-          {isOpen && isAuthenticated && user && (
-            <div className="p-4 border-t border-slate-800">
-              <div className="flex items-center">
-                <div className="bg-teleport-blue rounded-full p-2">
-                  <User className="h-4 w-4 text-white" />
-                </div>
-                <div className="ml-2 overflow-hidden">
-                  <p className="text-sm font-medium text-white truncate">
-                    {user.name || user.username}
-                  </p>
-                  <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* Regular login dialog */}
-      <LoginDialog 
-        isOpen={showLoginDialog} 
-        onClose={() => setShowLoginDialog(false)} 
-        onSuccess={() => setShowLoginDialog(false)}
-      />
+        </nav>
+      </aside>
 
-      {/* Teleport login dialog */}
-      <TeleportLoginDialog
-        isOpen={showTeleportLoginDialog}
-        onClose={() => setShowTeleportLoginDialog(false)}
-        onSuccess={handleTeleportLoginSuccess}
+      {/* Portal Selection Dialog */}
+      <Dialog open={fetchDialogOpen} onOpenChange={setFetchDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Fetch Users from Portal</DialogTitle>
+            <DialogDescription>
+              Select a portal to fetch users from via SSH.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Select 
+              value={selectedPortal} 
+              onValueChange={setSelectedPortal}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a portal" />
+              </SelectTrigger>
+              <SelectContent>
+                {portalOptions.map(portal => (
+                  <SelectItem key={portal} value={portal}>
+                    {portal}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setFetchDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleFetchUsersFromSSH}
+              disabled={isLoading || !selectedPortal}
+            >
+              {isLoading ? "Fetching..." : "Fetch Users"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Login Dialog */}
+      <LoginDialog 
+        isOpen={loginDialogOpen} 
+        onClose={() => setLoginDialogOpen(false)}
+        onSuccess={handleLoginSuccess}
       />
     </>
   );

@@ -39,28 +39,11 @@ export const LoginDialog = ({ isOpen, onClose, onSuccess }: LoginDialogProps) =>
 
     setIsLoading(true);
     try {
-      const response = await login(username, password);
-      
-      // Get roles from localStorage if they've been set from the API response
-      const roles = JSON.parse(localStorage.getItem('user_roles') || '[]');
-      
-      // Show appropriate message based on roles
-      if (roles.includes('admin')) {
-        toast({
-          title: "Login successful",
-          description: "You're now authenticated with full admin access."
-        });
-      } else if (roles.includes('limited_user')) {
-        toast({
-          title: "Login successful",
-          description: "You're now authenticated with limited access."
-        });
-      } else {
-        toast({
-          title: "Login successful",
-          description: "You're now authenticated."
-        });
-      }
+      await login(username, password);
+      toast({
+        title: "Login successful",
+        description: "You're now authenticated to access SSH features."
+      });
       onSuccess();
       onClose();
     } catch (error) {

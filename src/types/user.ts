@@ -8,11 +8,4 @@ export interface User {
   status: 'active' | 'inactive' | 'pending';
   manager?: string | null;
   portal: 'kocharsoft' | 'igzy' | 'maxicus' | null;
-  
-  // Keycloak specific fields
-  keycloakId?: string;
-  email?: string;
-  givenName?: string;
-  familyName?: string;
-  preferredUsername?: string;
 }
