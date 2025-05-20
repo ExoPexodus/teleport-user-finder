@@ -9,10 +9,15 @@ const API_URL = '/api';
 // Helper function to handle API responses
 const handleResponse = async (response: Response) => {
   if (response.status === 401 || response.status === 403) {
-    // Authentication error
-    localStorage.removeItem('token');
-    localStorage.removeItem('user_roles');
-    window.location.href = '/login'; // Force redirect to login
+    // Authentication error - only remove token if we're not on the login page
+    if (!window.location.pathname.includes('login')) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user_roles');
+      // Don't redirect if we're already on login or auth-callback pages
+      if (!window.location.pathname.includes('auth-callback')) {
+        window.location.href = '/login'; // Force redirect to login
+      }
+    }
     const errorData = await response.json().catch(() => ({ message: 'Authentication failed' }));
     throw new Error(errorData.message || 'Authentication failed. Please login again.');
   }

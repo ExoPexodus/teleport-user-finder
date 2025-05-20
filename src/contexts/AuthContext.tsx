@@ -39,7 +39,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsAuthenticated(true);
       } catch (error) {
         console.error('Auth check failed:', error);
-        localStorage.removeItem('token');
+        // Only remove token if it's an authentication error
+        if (error instanceof Error && 
+           (error.message.includes('Authentication') || 
+            error.message.includes('token') ||
+            error.message.includes('401') ||
+            error.message.includes('403'))) {
+          localStorage.removeItem('token');
+          setIsAuthenticated(false);
+        }
       } finally {
         setIsLoading(false);
       }
