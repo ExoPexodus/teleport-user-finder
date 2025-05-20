@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +21,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
+import { TeleportLoginDialog } from '@/components/TeleportLoginDialog';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -34,6 +34,8 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, currentPage }: SidebarProps) => {
   const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [showTeleportLoginDialog, setShowTeleportLoginDialog] = useState(false);
+  const [selectedPortal, setSelectedPortal] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const { toast } = useToast();
   const { isAuthenticated, user } = useAuth();
@@ -55,6 +57,9 @@ export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, cu
       return;
     }
     
+    // Store the selected portal for use after teleport login if needed
+    setSelectedPortal(portal);
+    
     setIsFetching(true);
     try {
       const result = await fetchUsersFromSSH(portal);
@@ -65,6 +70,13 @@ export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, cu
       });
     } catch (error) {
       console.error('Error fetching users from portal:', error);
+      
+      // Check if the error is due to teleport authentication
+      if (error instanceof Error && error.message.includes('Teleport authentication required')) {
+        setShowTeleportLoginDialog(true);
+        return;
+      }
+      
       toast({
         title: "Fetch failed",
         description: error instanceof Error ? error.message : `Failed to fetch users from ${portal}.`,
@@ -84,6 +96,14 @@ export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, cu
     if (!onExportCsv) return;
     
     onExportCsv();
+  };
+
+  const handleTeleportLoginSuccess = async () => {
+    setShowTeleportLoginDialog(false);
+    // Retry fetching with the selected portal if it exists
+    if (selectedPortal) {
+      await handleFetchFromPortal(selectedPortal);
+    }
   };
 
   return (
@@ -190,10 +210,18 @@ export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, cu
         </div>
       </div>
       
+      {/* Regular login dialog */}
       <LoginDialog 
         isOpen={showLoginDialog} 
         onClose={() => setShowLoginDialog(false)} 
         onSuccess={() => setShowLoginDialog(false)}
+      />
+
+      {/* Teleport login dialog */}
+      <TeleportLoginDialog
+        isOpen={showTeleportLoginDialog}
+        onClose={() => setShowTeleportLoginDialog(false)}
+        onSuccess={handleTeleportLoginSuccess}
       />
     </>
   );

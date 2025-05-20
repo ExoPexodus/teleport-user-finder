@@ -1,3 +1,4 @@
+
 import { User } from '@/types/user';
 import { RoleChangeSchedule } from '@/types/schedule';
 import { AdminUser } from '@/types/admin';
@@ -35,6 +36,12 @@ const getAuthHeaders = () => {
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 };
 
+// Helper function to get teleport auth headers
+const getTeleportAuthHeaders = () => {
+  const teleportToken = localStorage.getItem('teleport_token');
+  return teleportToken ? { 'Authorization': `Bearer ${teleportToken}` } : {};
+};
+
 // Helper function to get basic auth headers for protected API endpoints
 // Using environment variables for credentials
 const getProtectedApiHeaders = () => {
@@ -43,6 +50,25 @@ const getProtectedApiHeaders = () => {
   const basicAuth = btoa(`${username}:${password}`);
   return { 'Authorization': `Basic ${basicAuth}` };
 };
+
+// Teleport authentication function
+export async function teleportLogin(username: string, password: string): Promise<{ token: string }> {
+  const response = await fetch('/teleport/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getProtectedApiHeaders() // Use protected API credentials
+    },
+    body: JSON.stringify({ username, password }),
+  });
+  
+  const data = await handleResponse(response);
+  
+  // Store the teleport token in localStorage for future requests
+  localStorage.setItem('teleport_token', data.token);
+  
+  return data;
+}
 
 export async function fetchUsers(portal?: string): Promise<User[]> {
   const url = portal 
@@ -153,12 +179,31 @@ export async function fetchUserProfile(): Promise<AdminUser> {
 }
 
 export async function fetchUsersFromSSH(client: string): Promise<{ success: boolean; message: string }> {
+  // First, attempt to use any existing teleport token
+  let teleportToken = localStorage.getItem('teleport_token');
+  
+  // If no token exists, try to authenticate with default credentials
+  if (!teleportToken) {
+    try {
+      // Using environment variables for teleport credentials
+      const username = import.meta.env.API_USERNAME || 'admin';
+      const password = import.meta.env.API_PASSWORD || 'password';
+      
+      const authResult = await teleportLogin(username, password);
+      teleportToken = authResult.token;
+    } catch (error) {
+      console.error('Failed to authenticate with Teleport:', error);
+      throw new Error('Teleport authentication required. Please login with valid credentials.');
+    }
+  }
+  
+  // Now make the actual API call with the teleport token
   const response = await fetch('/teleport/fetch-users', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-      ...getProtectedApiHeaders() // Add protected API credentials
+      ...getTeleportAuthHeaders(), // Use the teleport token
+      ...getProtectedApiHeaders() // Also include protected API credentials
     },
     body: JSON.stringify({ client }),
   });
