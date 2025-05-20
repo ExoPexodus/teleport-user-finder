@@ -1,4 +1,3 @@
-
 import { User } from '@/types/user';
 import { RoleChangeSchedule } from '@/types/schedule';
 import { AdminUser } from '@/types/admin';
@@ -43,11 +42,11 @@ const getTeleportAuthHeaders = () => {
 };
 
 // Helper function to get basic auth headers for protected API endpoints
-// Using environment variables for credentials
+// Using proper environment variables access for Vite
 const getProtectedApiHeaders = () => {
-  const username = import.meta.env.API_USERNAME || 'admin';
-  const password = import.meta.env.API_PASSWORD || 'password';
-  const basicAuth = btoa(`${username}:${password}`);
+  const username = import.meta.env.VITE_API_USERNAME;
+  const password = import.meta.env.VITE_API_PASSWORD;
+  const basicAuth = btoa(`${username || 'admin'}:${password || 'password'}`);
   return { 'Authorization': `Basic ${basicAuth}` };
 };
 

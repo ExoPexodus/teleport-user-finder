@@ -1,4 +1,3 @@
-
 version: '3.8'
 
 services:
@@ -10,8 +9,8 @@ services:
       - "80:80"
     environment:
       # Frontend authentication credentials for protected APIs
-      - API_USERNAME=${API_USERNAME:-admin}
-      - API_PASSWORD=${API_PASSWORD:-password}
+      - VITE_API_USERNAME=${API_USERNAME:-admin}
+      - VITE_API_PASSWORD=${API_PASSWORD:-password}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8888}
     depends_on:
       - backend
