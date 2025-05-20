@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Database, LogIn, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Separator } from '@/components/ui/separator';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -108,12 +107,6 @@ const Login = () => {
                 </>
               )}
             </Button>
-            
-            <div className="flex items-center w-full">
-              <Separator className="flex-grow bg-slate-700" />
-              <span className="px-3 text-slate-400 text-sm">OR</span>
-              <Separator className="flex-grow bg-slate-700" />
-            </div>
             
             <Button 
               type="button"
