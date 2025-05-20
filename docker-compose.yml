@@ -38,6 +38,8 @@ services:
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-teleport}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-teleport-client}
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+      # Frontend URL for SSO callback
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8888}
     volumes:
       - ${SSH_KEY_LOCAL_PATH:-./ssh_key}:${SSH_KEY_PATH:-/app/ssh_key}:ro
     depends_on:

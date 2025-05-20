@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify, redirect
 import logging
 import requests
@@ -6,7 +5,7 @@ from utils.keycloak_auth import login_user, token_required, role_required
 from utils.logging_config import setup_logging
 from utils.admin_sync import sync_admin_user
 import os
-from config import KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
+from config import KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET, FRONTEND_URL
 
 logger = setup_logging()
 
@@ -49,8 +48,8 @@ def login():
 @auth_routes.route('/auth/sso-login', methods=['GET'])
 def sso_login():
     """Redirect to Keycloak SSO login page"""
-    # Get the frontend URL for the redirect_uri
-    frontend_url = request.headers.get('Origin', 'http://localhost:8888')
+    # Get the frontend URL from config, with request Origin as fallback
+    frontend_url = FRONTEND_URL or request.headers.get('Origin', 'http://localhost:8888')
     
     # Construct the Keycloak SSO URL
     redirect_uri = f"{frontend_url}/auth-callback"
@@ -73,8 +72,8 @@ def exchange_sso():
     
     logger.info("Exchanging authorization code for token")
     
-    # Get the frontend URL for the redirect_uri
-    frontend_url = request.headers.get('Origin', 'http://localhost:8888')
+    # Get the frontend URL from config, with request Origin as fallback
+    frontend_url = FRONTEND_URL or request.headers.get('Origin', 'http://localhost:8888')
     redirect_uri = f"{frontend_url}/auth-callback"
     
     # Exchange the code for tokens
