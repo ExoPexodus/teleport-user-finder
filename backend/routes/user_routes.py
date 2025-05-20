@@ -1,4 +1,3 @@
-
 from flask import Blueprint, jsonify, request
 import logging
 from utils.db import get_db_session, get_db_connection

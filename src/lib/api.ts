@@ -1,7 +1,8 @@
+
 import { User } from '@/types/user';
 import { RoleChangeSchedule } from '@/types/schedule';
 
-// Using relative URL to make requests go through nginx proxy
+// API URL paths need to be adjusted to match nginx config
 const API_URL = '/api';
 
 export async function fetchUsers(portal?: string): Promise<User[]> {
