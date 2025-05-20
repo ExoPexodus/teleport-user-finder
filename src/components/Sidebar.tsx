@@ -21,8 +21,8 @@ interface SidebarProps {
   isOpen: boolean;
   setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   users: any[];
-  onFetchData: () => void;
-  onExportCsv: () => void;
+  onFetchData?: () => void;
+  onExportCsv?: () => void;
   currentPage?: string;
 }
 
@@ -46,6 +46,8 @@ export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, cu
       setShowLoginDialog(true);
       return;
     }
+    
+    if (!onFetchData) return;
     
     setIsFetching(true);
     try {
@@ -71,6 +73,8 @@ export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, cu
       setShowLoginDialog(true);
       return;
     }
+    
+    if (!onExportCsv) return;
     
     onExportCsv();
   };
@@ -117,28 +121,32 @@ export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, cu
             </nav>
             
             <div className="mt-auto space-y-2">
-              <Button
-                variant="outline"
-                className={`w-full justify-start ${isOpen ? "" : "px-0 justify-center"}`}
-                onClick={handleFetchUsers}
-                disabled={isFetching}
-              >
-                {isFetching ? (
-                  <RefreshCw className="h-5 w-5 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-5 w-5" />
-                )}
-                {isOpen && <span className="ml-2">Refresh Data</span>}
-              </Button>
+              {onFetchData && (
+                <Button
+                  variant="outline"
+                  className={`w-full justify-start ${isOpen ? "" : "px-0 justify-center"}`}
+                  onClick={handleFetchUsers}
+                  disabled={isFetching}
+                >
+                  {isFetching ? (
+                    <RefreshCw className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-5 w-5" />
+                  )}
+                  {isOpen && <span className="ml-2">Refresh Data</span>}
+                </Button>
+              )}
               
-              <Button
-                variant="outline"
-                className={`w-full justify-start ${isOpen ? "" : "px-0 justify-center"}`}
-                onClick={handleExportCsv}
-              >
-                <Download className="h-5 w-5" />
-                {isOpen && <span className="ml-2">Export CSV</span>}
-              </Button>
+              {onExportCsv && (
+                <Button
+                  variant="outline"
+                  className={`w-full justify-start ${isOpen ? "" : "px-0 justify-center"}`}
+                  onClick={handleExportCsv}
+                >
+                  <Download className="h-5 w-5" />
+                  {isOpen && <span className="ml-2">Export CSV</span>}
+                </Button>
+              )}
             </div>
           </div>
           

@@ -47,6 +47,38 @@ const ScheduledJobs = () => {
     queryFn: () => fetchScheduledJobs(),
   });
 
+  // Function to export CSV data
+  const handleExportCsv = () => {
+    if (!allJobs || allJobs.length === 0) return;
+    
+    // Create CSV content
+    const headers = ['User', 'Portal', 'Action', 'Roles', 'Scheduled Time', 'Status'];
+    const rows = allJobs.map(job => [
+      job.userName,
+      job.portal,
+      job.action,
+      job.roles.join(', '),
+      new Date(job.scheduledTime).toLocaleString(),
+      job.status
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `scheduled-jobs-${new Date().toISOString().slice(0, 10)}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Function to filter and sort jobs
   const getFilteredAndSortedJobs = () => {
     if (!allJobs) return [];
@@ -103,6 +135,7 @@ const ScheduledJobs = () => {
         users={[]}
         currentPage="scheduled-jobs" 
         onFetchData={refetch}
+        onExportCsv={handleExportCsv}
       />
       <div className={`transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <Header />

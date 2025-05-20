@@ -53,7 +53,7 @@ const AuthCallback = () => {
   if (isProcessing) {
     return (
       <div className="min-h-screen bg-teleport-darkgray flex flex-col items-center justify-center">
-        <Loader size="lg" />
+        <Loader />
         <p className="mt-4 text-white">Processing SSO login...</p>
       </div>
     );
@@ -70,7 +70,7 @@ const AuthCallback = () => {
     );
   }
 
-  return <Loader size="lg" />;
+  return <Loader />;
 };
 
 export default AuthCallback;

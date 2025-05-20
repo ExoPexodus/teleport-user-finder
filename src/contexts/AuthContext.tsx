@@ -73,7 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const handleSSOCallback = async (code: string) => {
+  const handleSSOCallback = async (code: string): Promise<void> => {
     setIsLoading(true);
     try {
       // Exchange the authorization code for tokens
@@ -84,7 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userProfile);
       setIsAuthenticated(true);
       
-      return userProfile;
+      // Return void instead of userProfile to match the interface
     } catch (error) {
       console.error('SSO callback error:', error);
       localStorage.removeItem('token');
