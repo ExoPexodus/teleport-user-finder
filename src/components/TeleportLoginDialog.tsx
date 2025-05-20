@@ -95,7 +95,7 @@ export const TeleportLoginDialog: React.FC<TeleportLoginDialogProps> = ({ isOpen
               disabled={isLoading}
               className="bg-teleport-blue hover:bg-teleport-blue/80"
             >
-              {isLoading ? <Loader size="sm" /> : "Login"}
+              {isLoading ? <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin"></div> : "Login"}
             </Button>
           </div>
         </form>
