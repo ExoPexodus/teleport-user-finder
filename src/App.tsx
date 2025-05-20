@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import AuthCallback from "./pages/AuthCallback";
 import Profile from "./pages/Profile";
 import RoleScheduler from "./pages/RoleScheduler";
 import ScheduledJobs from "./pages/ScheduledJobs";
@@ -22,6 +23,7 @@ const App = () => (
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/auth-callback" element={<AuthCallback />} />
           
           {/* Protected Routes */}
           <Route path="/" element={

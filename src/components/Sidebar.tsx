@@ -23,9 +23,10 @@ interface SidebarProps {
   users: any[];
   onFetchData: () => void;
   onExportCsv: () => void;
+  currentPage?: string;
 }
 
-export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv }: SidebarProps) => {
+export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, currentPage }: SidebarProps) => {
   const [showLoginDialog, setShowLoginDialog] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const { toast } = useToast();

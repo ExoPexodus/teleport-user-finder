@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { login, fetchUserProfile } from '@/lib/api';
+import { login, fetchUserProfile, exchangeSSO } from '@/lib/api';
 import { AdminUser } from '@/types/admin';
 
 interface AuthContextType {
@@ -12,6 +12,7 @@ interface AuthContextType {
   logout: () => void;
   refreshUserProfile: () => Promise<void>;
   isLoading: boolean;
+  handleSSOCallback: (code: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -72,6 +73,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const handleSSOCallback = async (code: string) => {
+    setIsLoading(true);
+    try {
+      // Exchange the authorization code for tokens
+      await exchangeSSO(code);
+      
+      // Fetch the user profile
+      const userProfile = await fetchUserProfile();
+      setUser(userProfile);
+      setIsAuthenticated(true);
+      
+      return userProfile;
+    } catch (error) {
+      console.error('SSO callback error:', error);
+      localStorage.removeItem('token');
+      localStorage.removeItem('user_roles');
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user_roles');
@@ -104,7 +127,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login: handleLogin,
         logout: handleLogout,
         refreshUserProfile,
-        isLoading
+        isLoading,
+        handleSSOCallback,
       }}
     >
       {children}

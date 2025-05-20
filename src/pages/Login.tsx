@@ -7,11 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Database, LogIn, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { Separator } from '@/components/ui/separator';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSSO, setIsSSO] = useState(false);
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -34,6 +36,17 @@ const Login = () => {
       console.error('Login failed:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSSOLogin = async () => {
+    setIsSSO(true);
+    try {
+      // Redirect to Keycloak SSO login page
+      window.location.href = '/auth/sso-login';
+    } catch (error) {
+      console.error('SSO login failed:', error);
+      setIsSSO(false);
     }
   };
 
@@ -77,7 +90,7 @@ const Login = () => {
               />
             </div>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex flex-col space-y-4">
             <Button 
               className="w-full bg-teleport-blue hover:bg-teleport-blue/80 flex items-center gap-2"
               disabled={isLoading}
@@ -92,6 +105,32 @@ const Login = () => {
                 <>
                   <LogIn className="h-4 w-4" />
                   <span>Login</span>
+                </>
+              )}
+            </Button>
+            
+            <div className="flex items-center w-full">
+              <Separator className="flex-grow bg-slate-700" />
+              <span className="px-3 text-slate-400 text-sm">OR</span>
+              <Separator className="flex-grow bg-slate-700" />
+            </div>
+            
+            <Button 
+              type="button"
+              variant="outline" 
+              className="w-full border-slate-700 text-white hover:bg-teleport-blue/20"
+              onClick={handleSSOLogin}
+              disabled={isSSO}
+            >
+              {isSSO ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Redirecting to SSO...</span>
+                </>
+              ) : (
+                <>
+                  <LogIn className="h-4 w-4" />
+                  <span>Login with SSO</span>
                 </>
               )}
             </Button>

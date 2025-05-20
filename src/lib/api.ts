@@ -97,6 +97,32 @@ export async function login(username: string, password: string): Promise<{ token
   return data;
 }
 
+export async function exchangeSSO(code: string): Promise<{ token: string }> {
+  const response = await fetch('/auth/exchange-sso', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ code }),
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'SSO exchange failed');
+  }
+  
+  const data = await response.json();
+  // Store the token in localStorage for future requests
+  localStorage.setItem('token', data.access_token || data.token);
+  
+  // Store user roles in localStorage if present in the decoded token
+  if (data.decoded_token && data.decoded_token.realm_access && data.decoded_token.realm_access.roles) {
+    localStorage.setItem('user_roles', JSON.stringify(data.decoded_token.realm_access.roles));
+  }
+  
+  return data;
+}
+
 export async function fetchUserProfile(): Promise<AdminUser> {
   const token = localStorage.getItem('token');
   
