@@ -104,11 +104,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleLogout = () => {
+    // Get token to check if it's an SSO login
+    const token = localStorage.getItem('token');
+    
+    // Clear local storage regardless
     localStorage.removeItem('token');
     localStorage.removeItem('user_roles');
     setUser(null);
     setIsAuthenticated(false);
-    navigate('/login');
+    
+    // Check if we should redirect to Keycloak logout
+    const isKeycloakLogin = token && token.length > 200; // Simple heuristic for Keycloak token
+    
+    if (isKeycloakLogin) {
+      // Redirect to Keycloak logout endpoint
+      const keycloakURL = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080/auth';
+      const realm = import.meta.env.VITE_KEYCLOAK_REALM || 'teleport';
+      const frontendURL = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
+      
+      const logoutURL = `${keycloakURL}/realms/${realm}/protocol/openid-connect/logout?redirect_uri=${encodeURIComponent(frontendURL + '/login')}`;
+      
+      window.location.href = logoutURL;
+    } else {
+      // Regular logout - just navigate to login
+      navigate('/login');
+    }
+    
     toast({
       title: "Logged Out",
       description: "You have been successfully logged out."

@@ -12,10 +12,17 @@ import {
   Download, 
   Home, 
   RefreshCw, 
-  Settings, 
   User, 
-  Clock
+  Clock,
+  Server
 } from 'lucide-react';
+import { fetchUsersFromSSH } from '@/lib/api';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -33,12 +40,14 @@ export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, cu
   const { isAuthenticated, user } = useAuth();
   const location = useLocation();
   
+  // Get unique portals from user data
+  const portals = [...new Set(users.map(user => user.portal))].filter(Boolean);
+  
   const navItems = [
     { path: '/', label: 'Dashboard', icon: Home },
     { path: '/profile', label: 'My Profile', icon: User },
     { path: '/scheduler', label: 'Role Scheduler', icon: Database },
     { path: '/scheduled-jobs', label: 'Scheduled Jobs', icon: Clock },
-    { path: '/settings', label: 'Settings', icon: Settings },
   ];
   
   const handleFetchUsers = async () => {
@@ -61,6 +70,32 @@ export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, cu
       toast({
         title: "Refresh failed",
         description: error instanceof Error ? error.message : "Failed to refresh user data.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsFetching(false);
+    }
+  };
+
+  const handleFetchFromPortal = async (portal: string) => {
+    if (!isAuthenticated) {
+      setShowLoginDialog(true);
+      return;
+    }
+    
+    setIsFetching(true);
+    try {
+      const result = await fetchUsersFromSSH(portal);
+      onFetchData && await onFetchData();
+      toast({
+        title: "Users fetched",
+        description: result.message || `Users from ${portal} fetched successfully.`,
+      });
+    } catch (error) {
+      console.error('Error fetching users from portal:', error);
+      toast({
+        title: "Fetch failed",
+        description: error instanceof Error ? error.message : `Failed to fetch users from ${portal}.`,
         variant: "destructive"
       });
     } finally {
@@ -121,6 +156,37 @@ export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, cu
             </nav>
             
             <div className="mt-auto space-y-2">
+              {/* Fetch users from portal dropdown */}
+              {portals.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={`w-full justify-start ${isOpen ? "" : "px-0 justify-center"}`}
+                      disabled={isFetching}
+                    >
+                      {isFetching ? (
+                        <Server className="h-5 w-5 animate-pulse" />
+                      ) : (
+                        <Server className="h-5 w-5" />
+                      )}
+                      {isOpen && <span className="ml-2 truncate">Fetch from Portal</span>}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="bg-teleport-gray border-slate-700 text-white">
+                    {portals.map(portal => (
+                      <DropdownMenuItem
+                        key={portal}
+                        onClick={() => handleFetchFromPortal(portal)}
+                        className="cursor-pointer"
+                      >
+                        {portal}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
               {onFetchData && (
                 <Button
                   variant="outline"

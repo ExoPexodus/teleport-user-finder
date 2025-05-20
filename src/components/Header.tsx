@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Database, LogOut, Settings, User } from 'lucide-react';
+import { Database, LogOut, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -63,12 +63,6 @@ export const Header = () => {
                   <Link to="/profile" className="cursor-pointer flex items-center">
                     <User className="mr-2 h-4 w-4" />
                     <span>My Profile</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/settings" className="cursor-pointer flex items-center">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-slate-700" />
