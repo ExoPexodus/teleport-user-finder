@@ -36,25 +36,28 @@ if not GEMINI_API_KEY:
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Create the base model
+# Create the base model with generation config
+system_instruction = """
+You are a helpful assistant for the Teleport User Management application. 
+You can help users understand:
+- Scheduled jobs in the system
+- User role changes (additions and removals)
+- General functionality of the application
+- Status of various operations
+
+When asked about specific data in the system, you should check the available API endpoints to retrieve the most up-to-date information.
+
+Available endpoints:
+- /api/users - Get all users
+- /teleport/scheduled-jobs - Get all scheduled role changes
+
+Respond concisely and accurately.
+"""
+
+# Create the model with the correct parameter format
 model = genai.GenerativeModel(
     model_name="gemini-1.5-pro",
-    system_instruction="""
-    You are a helpful assistant for the Teleport User Management application. 
-    You can help users understand:
-    - Scheduled jobs in the system
-    - User role changes (additions and removals)
-    - General functionality of the application
-    - Status of various operations
-    
-    When asked about specific data in the system, you should check the available API endpoints to retrieve the most up-to-date information.
-    
-    Available endpoints:
-    - /api/users - Get all users
-    - /teleport/scheduled-jobs - Get all scheduled role changes
-    
-    Respond concisely and accurately.
-    """
+    generation_config={"temperature": 0.7},
 )
 
 # Get application data to inform the AI
@@ -89,8 +92,10 @@ async def chat(message: str = Form(...)):
         # Get app data for context
         app_data = await get_application_data()
         
-        # Create a prompt that includes the application data
+        # Create a prompt that includes the application data and system instruction
         context_prompt = f"""
+        {system_instruction}
+        
         Here is the current state of the application:
         Users: {json.dumps(app_data.get('users', []))}
         Scheduled Jobs: {json.dumps(app_data.get('scheduled_jobs', []))}
@@ -133,6 +138,8 @@ async def process_audio(audio: UploadFile = File(...)):
         
         # Create context for the AI
         context_prompt = f"""
+        {system_instruction}
+        
         Here is the current state of the application:
         Users: {json.dumps(app_data.get('users', []))}
         Scheduled Jobs: {json.dumps(app_data.get('scheduled_jobs', []))}
@@ -157,6 +164,8 @@ async def audio_websocket(websocket: WebSocket):
         # Get application data for context
         app_data = await get_application_data()
         app_context = f"""
+        {system_instruction}
+        
         Application context:
         Users: {json.dumps(app_data.get('users', []))}
         Scheduled Jobs: {json.dumps(app_data.get('scheduled_jobs', []))}
