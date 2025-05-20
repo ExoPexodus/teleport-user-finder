@@ -46,7 +46,7 @@ const getTeleportAuthHeaders = () => {
 const getProtectedApiHeaders = () => {
   const username = import.meta.env.VITE_API_USERNAME;
   const password = import.meta.env.VITE_API_PASSWORD;
-  const basicAuth = btoa(`${username || 'admin'}:${password || 'password'}`);
+  const basicAuth = btoa(`${username || 'admin'}:${password || 'VB61DasbYsn#121mKtwsn*&31scaJK'}`);
   return { 'Authorization': `Basic ${basicAuth}` };
 };
 
@@ -186,7 +186,7 @@ export async function fetchUsersFromSSH(client: string): Promise<{ success: bool
     try {
       // Using environment variables for teleport credentials
       const username = import.meta.env.API_USERNAME || 'admin';
-      const password = import.meta.env.API_PASSWORD || 'password';
+      const password = import.meta.env.API_PASSWORD || 'VB61DasbYsn#121mKtwsn*&31scaJK';
       
       const authResult = await teleportLogin(username, password);
       teleportToken = authResult.token;
