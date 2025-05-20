@@ -47,9 +47,6 @@ const App = () => (
             </ProtectedRoute>
           } />
           
-          {/* Redirect /settings to home */}
-          <Route path="/settings" element={<Navigate to="/" replace />} />
-          
           {/* Redirect to login if not found */}
           <Route path="*" element={<NotFound />} />
         </Routes>

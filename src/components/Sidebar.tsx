@@ -11,7 +11,6 @@ import {
   Database, 
   Download, 
   Home, 
-  RefreshCw, 
   User, 
   Clock,
   Server
@@ -49,33 +48,6 @@ export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, cu
     { path: '/scheduler', label: 'Role Scheduler', icon: Database },
     { path: '/scheduled-jobs', label: 'Scheduled Jobs', icon: Clock },
   ];
-  
-  const handleFetchUsers = async () => {
-    if (!isAuthenticated) {
-      setShowLoginDialog(true);
-      return;
-    }
-    
-    if (!onFetchData) return;
-    
-    setIsFetching(true);
-    try {
-      await onFetchData();
-      toast({
-        title: "Data refreshed",
-        description: "User data has been successfully refreshed.",
-      });
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast({
-        title: "Refresh failed",
-        description: error instanceof Error ? error.message : "Failed to refresh user data.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsFetching(false);
-    }
-  };
 
   const handleFetchFromPortal = async (portal: string) => {
     if (!isAuthenticated) {
@@ -185,22 +157,6 @@ export const Sidebar = ({ isOpen, setIsOpen, onFetchData, onExportCsv, users, cu
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-              )}
-
-              {onFetchData && (
-                <Button
-                  variant="outline"
-                  className={`w-full justify-start ${isOpen ? "" : "px-0 justify-center"}`}
-                  onClick={handleFetchUsers}
-                  disabled={isFetching}
-                >
-                  {isFetching ? (
-                    <RefreshCw className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-5 w-5" />
-                  )}
-                  {isOpen && <span className="ml-2">Refresh Data</span>}
-                </Button>
               )}
               
               {onExportCsv && (

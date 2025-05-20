@@ -1,4 +1,3 @@
-
 import { User } from '@/types/user';
 import { RoleChangeSchedule } from '@/types/schedule';
 import { AdminUser } from '@/types/admin';
@@ -34,6 +33,15 @@ const handleResponse = async (response: Response) => {
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
   return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
+
+// Helper function to get basic auth headers for protected API endpoints
+// Using environment variables for credentials
+const getProtectedApiHeaders = () => {
+  const username = import.meta.env.API_USERNAME || 'admin';
+  const password = import.meta.env.API_PASSWORD || 'password';
+  const basicAuth = btoa(`${username}:${password}`);
+  return { 'Authorization': `Basic ${basicAuth}` };
 };
 
 export async function fetchUsers(portal?: string): Promise<User[]> {
@@ -149,7 +157,8 @@ export async function fetchUsersFromSSH(client: string): Promise<{ success: bool
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...getAuthHeaders()
+      ...getAuthHeaders(),
+      ...getProtectedApiHeaders() // Add protected API credentials
     },
     body: JSON.stringify({ client }),
   });
