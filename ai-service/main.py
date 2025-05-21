@@ -36,7 +36,7 @@ if not GEMINI_API_KEY:
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Create the base model with generation config
+# System instruction for the AI assistant
 system_instruction = """
 You are a helpful assistant for the Teleport User Management application. 
 You can help users understand:
@@ -54,10 +54,14 @@ Available endpoints:
 Respond concisely and accurately.
 """
 
-# Create the model with the correct parameter format
+# Create the model with Gemini 2.0
 model = genai.GenerativeModel(
-    model_name="gemini-1.5-pro",
-    generation_config={"temperature": 0.7},
+    model_name="gemini-2.0-pro",  # Using Gemini 2.0 Pro model
+    generation_config={
+        "temperature": 0.7,
+        "top_p": 0.95,
+        "top_k": 40,
+    },
 )
 
 # Get application data to inform the AI
@@ -103,7 +107,7 @@ async def chat(message: str = Form(...)):
         User question: {message}
         """
         
-        # Generate a response from Gemini
+        # Generate a response from Gemini 2.0
         response = model.generate_content(context_prompt)
         
         return {"response": response.text}
@@ -115,40 +119,37 @@ async def chat(message: str = Form(...)):
 async def process_audio(audio: UploadFile = File(...)):
     """Process audio and respond with AI-generated text"""
     try:
-        # Read and convert the audio file
+        # Read the audio file
         audio_data = await audio.read()
-        audio_segment = AudioSegment.from_file(io.BytesIO(audio_data))
         
-        # Convert to WAV format for processing
-        wav_io = io.BytesIO()
-        audio_segment.export(wav_io, format="wav")
-        wav_io.seek(0)
+        # Convert to base64 for the Gemini API
+        audio_b64 = base64.b64encode(audio_data).decode("utf-8")
         
         # Get application data for context
         app_data = await get_application_data()
-        
-        # For a real implementation, you would:
-        # 1. Convert audio to text using a speech-to-text service
-        # 2. Process the text with Gemini
-        # 3. Return the response
-        
-        # Placeholder for speech-to-text (in a real implementation)
-        # transcribed_text = speech_to_text(wav_io)
-        transcribed_text = "Placeholder for transcribed text"  # Placeholder
-        
-        # Create context for the AI
-        context_prompt = f"""
+        app_context = f"""
         {system_instruction}
         
-        Here is the current state of the application:
+        Application context:
         Users: {json.dumps(app_data.get('users', []))}
         Scheduled Jobs: {json.dumps(app_data.get('scheduled_jobs', []))}
-        
-        User question (from voice): {transcribed_text}
         """
         
-        # Generate response
-        response = model.generate_content(context_prompt)
+        # Process audio with Gemini 2.0 speech-to-text capability
+        speech_model = genai.GenerativeModel("gemini-2.0-pro-vision")
+        speech_response = speech_model.generate_content([
+            app_context,
+            {"audio": audio_b64}
+        ])
+        
+        # Extract the transcribed text
+        transcribed_text = speech_response.text
+        
+        # Generate a response to the transcribed text
+        response = model.generate_content([
+            app_context,
+            f"User question (from voice): {transcribed_text}"
+        ])
         
         return {"transcription": transcribed_text, "response": response.text}
     except Exception as e:
@@ -159,6 +160,11 @@ async def process_audio(audio: UploadFile = File(...)):
 async def audio_websocket(websocket: WebSocket):
     """Handle streaming audio for real-time voice processing"""
     await websocket.accept()
+    
+    # Buffer to accumulate audio chunks
+    audio_buffer = io.BytesIO()
+    last_process_time = 0
+    PROCESS_INTERVAL = 2.0  # Process every 2 seconds
     
     try:
         # Get application data for context
@@ -171,28 +177,66 @@ async def audio_websocket(websocket: WebSocket):
         Scheduled Jobs: {json.dumps(app_data.get('scheduled_jobs', []))}
         """
         
-        # In a real implementation, you would continuously:
-        # 1. Receive audio chunks
-        # 2. Process audio to text when appropriate
-        # 3. Get AI responses
-        # 4. Send responses back
-        
         while True:
             # Receive audio chunk
             audio_chunk = await websocket.receive_bytes()
             
-            # Process audio chunk (placeholder)
-            # In a real implementation, you would accumulate chunks until
-            # you detect a pause or end of speech, then process it
+            # Add chunk to buffer
+            audio_buffer.write(audio_chunk)
             
-            # Placeholder response
-            await websocket.send_json({
-                "type": "response",
-                "content": "This is a placeholder response. In a real implementation, this would process your voice input."
-            })
+            # Check if we should process the accumulated audio
+            current_time = asyncio.get_event_loop().time()
+            if current_time - last_process_time >= PROCESS_INTERVAL and audio_buffer.tell() > 0:
+                try:
+                    # Reset buffer position and get data
+                    audio_buffer.seek(0)
+                    audio_data = audio_buffer.getvalue()
+                    
+                    # Convert to base64 for the Gemini API
+                    audio_b64 = base64.b64encode(audio_data).decode("utf-8")
+                    
+                    # Process audio with Gemini 2.0 speech-to-text
+                    speech_model = genai.GenerativeModel("gemini-2.0-pro-vision")
+                    speech_response = speech_model.generate_content([
+                        app_context,
+                        {"audio": audio_b64}
+                    ])
+                    
+                    # Extract the transcribed text
+                    transcribed_text = speech_response.text
+                    
+                    if transcribed_text and transcribed_text.strip():
+                        # Generate a response to the transcribed text
+                        response = model.generate_content([
+                            app_context,
+                            f"User question (from voice): {transcribed_text}"
+                        ])
+                        
+                        # Send transcription and response back to client
+                        await websocket.send_json({
+                            "type": "transcription",
+                            "content": transcribed_text
+                        })
+                        
+                        await websocket.send_json({
+                            "type": "response",
+                            "content": response.text
+                        })
+                    
+                    # Reset buffer and update processing time
+                    audio_buffer = io.BytesIO()
+                    last_process_time = current_time
+                    
+                except Exception as e:
+                    logger.error(f"Error processing audio stream: {e}")
+                    await websocket.send_json({
+                        "type": "error",
+                        "content": f"Error processing audio: {str(e)}"
+                    })
             
-            # Check if client is still connected
+            # Small delay to prevent CPU overuse
             await asyncio.sleep(0.1)
+            
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
     finally:

@@ -55,6 +55,7 @@ services:
       - BACKEND_URL=http://backend:5000
     networks:
       - teleport-network
+    # Expose WebSocket port for direct browser connection
     ports:
       - "8000:8000"
 

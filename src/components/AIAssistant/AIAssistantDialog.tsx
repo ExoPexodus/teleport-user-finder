@@ -124,11 +124,13 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
         // Setup WebSocket connection
-        webSocketRef.current = new WebSocket('ws://localhost:8000/ws/audio-stream');
+        webSocketRef.current = new WebSocket(`ws://${window.location.hostname}:8000/ws/audio-stream`);
         
         webSocketRef.current.onopen = () => {
           // Create MediaRecorder once WebSocket is open
-          const mediaRecorder = new MediaRecorder(stream);
+          const mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'audio/webm' // Use a widely supported format
+          });
           mediaRecorderRef.current = mediaRecorder;
           
           // Add user message to indicate recording started
@@ -146,7 +148,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
             // Update the last user message to show recording stopped
             setMessages(prev => {
               const newMessages = [...prev];
-              // Find the last recording message using a for loop instead of findLastIndex
+              // Find the last recording message
               let lastRecordingIndex = -1;
               for (let i = newMessages.length - 1; i >= 0; i--) {
                 if (newMessages[i].role === 'user' && newMessages[i].content === '🎤 Recording...') {
@@ -165,16 +167,32 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
             stream.getTracks().forEach(track => track.stop());
           };
           
-          // Start recording
-          mediaRecorder.start(100); // Collect 100ms chunks
+          // Start recording with shorter chunks for more responsive interaction
+          mediaRecorder.start(500); // Collect 500ms chunks
           setIsRecording(true);
         };
         
         // Handle messages from the server
         webSocketRef.current.onmessage = (event) => {
           const data = JSON.parse(event.data);
+          
+          // Handle transcription message
+          if (data.type === 'transcription') {
+            setMessages(prev => [...prev, { role: 'user', content: `Transcription: ${data.content}` }]);
+          }
+          
+          // Handle response message
           if (data.type === 'response') {
             setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+          }
+          
+          // Handle error message
+          if (data.type === 'error') {
+            toast({
+              title: 'Error',
+              description: data.content,
+              variant: 'destructive',
+            });
           }
         };
         
@@ -271,6 +289,20 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
     return null;
   };
 
+  // Handle file input for audio uploads
+  const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('audio/')) {
+      handleAudioUpload(file);
+    } else {
+      toast({
+        title: 'Invalid file',
+        description: 'Please upload an audio file.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-[400px] sm:w-[450px] p-0 flex flex-col h-full overflow-hidden border-l shadow-lg" side="right">
@@ -331,17 +363,18 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
               
               {/* Chat Input Area */}
               <div className="flex items-center space-x-2 pt-2 border-t">
+                <input
+                  type="file"
+                  accept="audio/*"
+                  id="audio-upload"
+                  className="hidden"
+                  onChange={handleFileInput}
+                />
                 <Button
                   variant="ghost"
                   size="icon"
                   className="rounded-full"
-                  onClick={() => {
-                    // File upload functionality placeholder
-                    toast({
-                      title: "Feature coming soon",
-                      description: "File upload will be available in a future update.",
-                    });
-                  }}
+                  onClick={() => document.getElementById('audio-upload')?.click()}
                 >
                   <Paperclip className="h-4 w-4" />
                 </Button>
@@ -417,6 +450,9 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
                 <p className="text-sm text-muted-foreground">
                   {isRecording ? "Tap to stop recording" : "Tap to start recording"}
                 </p>
+                <p className="text-xs text-muted-foreground text-center">
+                  Speech is processed in real-time with Gemini 2.0
+                </p>
               </div>
             </TabsContent>
           </Tabs>
@@ -424,7 +460,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
         
         <SheetFooter className="border-t px-6 py-4">
           <div className="text-xs text-muted-foreground w-full text-center">
-            AI assistant will answer questions about your Teleport application.
+            AI assistant powered by Gemini 2.0
           </div>
         </SheetFooter>
       </SheetContent>

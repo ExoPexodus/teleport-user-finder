@@ -1,6 +1,6 @@
-
 import { User } from '@/types/user';
 import { RoleChangeSchedule } from '@/types/schedule';
+import { AITextResponse, AIAudioResponse } from '@/types/ai';
 
 // API URL paths need to be adjusted to match nginx config
 const API_URL = '/api';
@@ -238,6 +238,40 @@ export async function fetchAvailableRoles(portal: string): Promise<string[]> {
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.message || 'Failed to fetch available roles');
+  }
+  
+  return response.json();
+}
+
+// AI API functions
+
+export async function sendChatMessage(message: string): Promise<AITextResponse> {
+  const formData = new FormData();
+  formData.append('message', message);
+  
+  const response = await fetch('/api/ai/chat', {
+    method: 'POST',
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to get AI response');
+  }
+  
+  return response.json();
+}
+
+export async function sendAudioMessage(audioFile: File): Promise<AIAudioResponse> {
+  const formData = new FormData();
+  formData.append('audio', audioFile);
+  
+  const response = await fetch('/api/ai/audio', {
+    method: 'POST',
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to process audio message');
   }
   
   return response.json();
