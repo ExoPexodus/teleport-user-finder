@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "8888:80"
     depends_on:
       - backend
       - ai-service
@@ -60,7 +60,7 @@ services:
       - "8000:8000"
 
   postgres:
-    image: postgres:15
+    image: postgres:latest
     environment:
       - POSTGRES_DB=teleport
       - POSTGRES_USER=teleport
