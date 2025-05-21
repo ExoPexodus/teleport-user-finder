@@ -54,13 +54,14 @@ Available endpoints:
 Respond concisely and accurately.
 """
 
-# Create the model with Gemini 2.0
+# Create the model with the correct Gemini Flash model that supports multimodal input
 model = genai.GenerativeModel(
-    model_name="gemini-2.0-pro",  # Using Gemini 2.0 Pro model
+    model_name="gemini-2.0-flash-live-001",  # Updated to use the correct model
     generation_config={
         "temperature": 0.7,
         "top_p": 0.95,
         "top_k": 40,
+        "response_modalities": ["text"],  # Configure to output text responses
     },
 )
 
@@ -107,7 +108,7 @@ async def chat(message: str = Form(...)):
         User question: {message}
         """
         
-        # Generate a response from Gemini 2.0
+        # Generate a response from Gemini model
         response = model.generate_content(context_prompt)
         
         return {"response": response.text}
@@ -135,14 +136,21 @@ async def process_audio(audio: UploadFile = File(...)):
         Scheduled Jobs: {json.dumps(app_data.get('scheduled_jobs', []))}
         """
         
-        # Process audio with Gemini 2.0 speech-to-text capability
-        speech_model = genai.GenerativeModel("gemini-2.0-pro-vision")
+        # Process audio with the Flash model that supports multimodal input
+        speech_model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash-live-001",
+            generation_config={
+                "response_modalities": ["text"],
+            }
+        )
+        
+        # Send both text context and audio to the model
         speech_response = speech_model.generate_content([
             app_context,
             {"audio": audio_b64}
         ])
         
-        # Extract the transcribed text
+        # Extract the transcribed text and use it to generate a response
         transcribed_text = speech_response.text
         
         # Generate a response to the transcribed text
@@ -165,7 +173,9 @@ async def audio_websocket(websocket: WebSocket):
     # Buffer to accumulate audio chunks
     audio_buffer = io.BytesIO()
     last_process_time = 0
+    last_ping_time = 0
     PROCESS_INTERVAL = 2.0  # Process every 2 seconds
+    PING_INTERVAL = 15.0    # Send ping every 15 seconds
     
     try:
         # Get application data for context
@@ -186,6 +196,15 @@ async def audio_websocket(websocket: WebSocket):
         
         while True:
             try:
+                # Check if we need to send a ping to keep connection alive
+                current_time = asyncio.get_event_loop().time()
+                if current_time - last_ping_time >= PING_INTERVAL:
+                    await websocket.send_json({
+                        "type": "status",
+                        "content": "ping"
+                    })
+                    last_ping_time = current_time
+                
                 # Receive audio chunk with a timeout
                 audio_chunk = await asyncio.wait_for(websocket.receive_bytes(), timeout=5.0)
                 
@@ -193,7 +212,6 @@ async def audio_websocket(websocket: WebSocket):
                 audio_buffer.write(audio_chunk)
                 
                 # Check if we should process the accumulated audio
-                current_time = asyncio.get_event_loop().time()
                 if current_time - last_process_time >= PROCESS_INTERVAL and audio_buffer.tell() > 0:
                     try:
                         # Reset buffer position and get data
@@ -205,8 +223,14 @@ async def audio_websocket(websocket: WebSocket):
                             # Convert to base64 for the Gemini API
                             audio_b64 = base64.b64encode(audio_data).decode("utf-8")
                             
-                            # Process audio with Gemini 2.0 speech-to-text
-                            speech_model = genai.GenerativeModel("gemini-2.0-pro-vision")
+                            # Process audio with updated Flash model
+                            speech_model = genai.GenerativeModel(
+                                model_name="gemini-2.0-flash-live-001",
+                                generation_config={
+                                    "response_modalities": ["text"],
+                                }
+                            )
+                            
                             speech_response = speech_model.generate_content([
                                 app_context,
                                 {"audio": audio_b64}
@@ -249,11 +273,25 @@ async def audio_websocket(websocket: WebSocket):
                 
             except asyncio.TimeoutError:
                 # Ping to keep connection alive
-                await websocket.send_json({
-                    "type": "status",
-                    "content": "ping"
-                })
+                current_time = asyncio.get_event_loop().time()
+                if current_time - last_ping_time >= PING_INTERVAL:
+                    await websocket.send_json({
+                        "type": "status",
+                        "content": "ping"
+                    })
+                    last_ping_time = current_time
                 continue
+            except Exception as e:
+                logger.error(f"Error in WebSocket communication: {e}")
+                # Try to send an error message if possible
+                try:
+                    await websocket.send_json({
+                        "type": "error",
+                        "content": f"Communication error: {str(e)}"
+                    })
+                except:
+                    pass
+                break
             
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
