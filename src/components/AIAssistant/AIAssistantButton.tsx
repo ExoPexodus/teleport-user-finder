@@ -11,7 +11,7 @@ export const AIAssistantButton = () => {
     <>
       <Button 
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 rounded-full p-4 shadow-lg bg-indigo-600 hover:bg-indigo-700"
+        className="fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-lg bg-teleport-blue hover:bg-teleport-darkblue flex items-center justify-center"
         aria-label="AI Assistant"
       >
         <MessageCircle className="h-6 w-6" />

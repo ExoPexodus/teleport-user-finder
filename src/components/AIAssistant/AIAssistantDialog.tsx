@@ -16,8 +16,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Mic, MicOff, MessageCircle, Send } from "lucide-react";
+import { Mic, MicOff, MessageCircle, Send, Paperclip } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 interface AIAssistantDialogProps {
   open: boolean;
@@ -251,16 +252,35 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
     }
   }, [open, activeTab]);
 
+  // Welcome message when no messages exist
+  const renderWelcomeMessage = () => {
+    if (messages.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-4">
+          <div className="bg-teleport-blue/10 rounded-full p-4">
+            <MessageCircle className="h-8 w-8 text-teleport-blue" />
+          </div>
+          <h3 className="font-medium text-lg">Teleport AI Assistant</h3>
+          <p className="text-sm text-muted-foreground">
+            Ask me questions about your Teleport application, user management, 
+            or how to use specific features.
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[400px] sm:w-[450px] p-0 overflow-hidden flex flex-col" side="right">
-        <SheetHeader className="p-4 border-b">
+      <SheetContent className="w-[400px] sm:w-[450px] p-0 flex flex-col h-full overflow-hidden border-l shadow-lg" side="right">
+        <SheetHeader className="px-6 py-4 border-b">
           <SheetTitle>AI Assistant</SheetTitle>
         </SheetHeader>
         
         <div className="flex-1 flex flex-col">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-            <TabsList className="grid w-full grid-cols-2 px-4 py-2 border-b">
+            <TabsList className="grid w-full grid-cols-2 px-6 py-2">
               <TabsTrigger value="chat" className="flex items-center gap-2">
                 <MessageCircle className="h-4 w-4" />
                 <span>Chat</span>
@@ -271,10 +291,11 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="chat" className="flex-1 flex flex-col p-4 space-y-4">
-              {/* Chat Messages */}
-              <ScrollArea className="flex-1 h-[calc(100vh-200px)] p-4 rounded border">
-                <div className="space-y-4 pr-4">
+            <TabsContent value="chat" className="flex-1 flex flex-col px-6 py-4 space-y-4">
+              {/* Chat Messages Area */}
+              <ScrollArea className="flex-1 pr-4">
+                <div className="space-y-4 min-h-[calc(100vh-280px)]">
+                  {renderWelcomeMessage()}
                   {messages.map((message, index) => (
                     <div 
                       key={index} 
@@ -283,7 +304,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
                       <div 
                         className={`max-w-[80%] rounded-lg p-3 ${
                           message.role === 'user' 
-                            ? 'bg-primary text-primary-foreground' 
+                            ? 'bg-teleport-blue text-white' 
                             : 'bg-muted'
                         }`}
                       >
@@ -295,8 +316,22 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
                 </div>
               </ScrollArea>
               
-              {/* Chat Input */}
-              <div className="flex items-center space-x-2">
+              {/* Chat Input Area */}
+              <div className="flex items-center space-x-2 pt-2 border-t">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
+                  onClick={() => {
+                    // File upload functionality placeholder
+                    toast({
+                      title: "Feature coming soon",
+                      description: "File upload will be available in a future update.",
+                    });
+                  }}
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
                 <Input
                   ref={inputRef}
                   value={inputValue}
@@ -309,11 +344,14 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
                     }
                   }}
                   disabled={isLoading}
+                  className="flex-1"
                 />
                 <Button 
                   onClick={handleSendMessage} 
                   disabled={!inputValue.trim() || isLoading}
                   size="icon"
+                  variant="default"
+                  className="rounded-full bg-teleport-blue hover:bg-teleport-darkblue"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
@@ -322,8 +360,9 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
             
             <TabsContent value="voice" className="flex-1 flex flex-col p-4 space-y-4">
               {/* Voice Messages */}
-              <ScrollArea className="flex-1 h-[calc(100vh-200px)] p-4 rounded border">
-                <div className="space-y-4 pr-4">
+              <ScrollArea className="flex-1 px-2">
+                <div className="space-y-4 min-h-[calc(100vh-280px)]">
+                  {renderWelcomeMessage()}
                   {messages.map((message, index) => (
                     <div 
                       key={index} 
@@ -332,7 +371,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
                       <div 
                         className={`max-w-[80%] rounded-lg p-3 ${
                           message.role === 'user' 
-                            ? 'bg-primary text-primary-foreground' 
+                            ? 'bg-teleport-blue text-white' 
                             : 'bg-muted'
                         }`}
                       >
@@ -345,11 +384,15 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
               </ScrollArea>
               
               {/* Voice Controls */}
-              <div className="flex flex-col items-center space-y-4">
+              <div className="flex flex-col items-center space-y-4 p-4 border-t">
                 <Button
                   onClick={toggleRecording}
                   variant={isRecording ? "destructive" : "default"}
-                  className="w-16 h-16 rounded-full"
+                  className={`w-16 h-16 rounded-full ${
+                    isRecording 
+                      ? 'bg-red-500 hover:bg-red-600' 
+                      : 'bg-teleport-blue hover:bg-teleport-darkblue'
+                  }`}
                   disabled={isLoading}
                 >
                   {isRecording ? (
@@ -366,8 +409,8 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
           </Tabs>
         </div>
         
-        <SheetFooter className="border-t p-4">
-          <div className="text-sm text-muted-foreground">
+        <SheetFooter className="border-t px-6 py-4">
+          <div className="text-xs text-muted-foreground w-full text-center">
             AI assistant will answer questions about your Teleport application.
           </div>
         </SheetFooter>
