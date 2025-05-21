@@ -54,17 +54,6 @@ Available endpoints:
 Respond concisely and accurately.
 """
 
-# Create the model with the correct Gemini Flash model that supports multimodal input
-model = genai.GenerativeModel(
-    model_name="gemini-2.0-flash-live-001",  # Updated to use the correct model
-    generation_config={
-        "temperature": 0.7,
-        "top_p": 0.95,
-        "top_k": 40,
-        "response_modalities": ["TEXT"],  # Configure to output text responses
-    },
-)
-
 # Get application data to inform the AI
 async def get_application_data():
     """Fetch all relevant application data to provide context to the AI"""
@@ -108,8 +97,25 @@ async def chat(message: str = Form(...)):
         User question: {message}
         """
         
-        # Generate a response from Gemini model
-        response = model.generate_content(context_prompt)
+        # Create a client for the Gemini API
+        client = genai.Client()
+        
+        # Use the correct model for text generation
+        model = client.get_generative_model(model_name="gemini-2.0-flash-live-001")
+        
+        # Configure response to be text only for regular chat
+        generation_config = {
+            "response_modalities": ["TEXT"],
+            "temperature": 0.7,
+            "top_p": 0.95,
+            "top_k": 40,
+        }
+        
+        # Generate a response using the correct API approach
+        response = model.generate_content(
+            contents=context_prompt,
+            generation_config=generation_config
+        )
         
         return {"response": response.text}
     except Exception as e:
@@ -136,30 +142,39 @@ async def process_audio(audio: UploadFile = File(...)):
         Scheduled Jobs: {json.dumps(app_data.get('scheduled_jobs', []))}
         """
         
-        # Process audio with the Flash model that supports multimodal input
-        speech_model = genai.GenerativeModel(
+        # Create a client for the Gemini API
+        client = genai.Client()
+        
+        # Use the correct model for audio processing with Live API approach
+        speech_model = client.get_generative_model(
             model_name="gemini-2.0-flash-live-001",
             generation_config={
-                "response_modalities": ["AUDIO"],
+                "response_modalities": ["TEXT"],
+                "temperature": 0.7,
+                "top_p": 0.95,
+                "top_k": 40,
             }
         )
         
-        # Send both text context and audio to the model
-        speech_response = speech_model.generate_content([
-            app_context,
-            {"audio": audio_b64}
+        # Create the content parts - text context and audio
+        contents = [
+            {"text": app_context},
+            {"inline_data": {"mime_type": "audio/mp3", "data": audio_b64}}
+        ]
+        
+        # Generate response
+        response = speech_model.generate_content(contents)
+        
+        # Extract the transcribed text - in this implementation we just get the full response
+        transcribed_text = response.text
+        
+        # Now generate a proper response to the transcribed text
+        chat_response = speech_model.generate_content([
+            {"text": app_context},
+            {"text": f"User question (from voice): {transcribed_text}"}
         ])
         
-        # Extract the transcribed text and use it to generate a response
-        transcribed_text = speech_response.text
-        
-        # Generate a response to the transcribed text
-        response = model.generate_content([
-            app_context,
-            f"User question (from voice): {transcribed_text}"
-        ])
-        
-        return {"transcription": transcribed_text, "response": response.text}
+        return {"transcription": transcribed_text, "response": chat_response.text}
     except Exception as e:
         logger.error(f"Error processing audio: {e}")
         return {"error": str(e)}
@@ -187,6 +202,9 @@ async def audio_websocket(websocket: WebSocket):
         Users: {json.dumps(app_data.get('users', []))}
         Scheduled Jobs: {json.dumps(app_data.get('scheduled_jobs', []))}
         """
+        
+        # Create a client for the Gemini API
+        client = genai.Client()
         
         # Send initial connection confirmation message
         await websocket.send_json({
@@ -223,27 +241,34 @@ async def audio_websocket(websocket: WebSocket):
                             # Convert to base64 for the Gemini API
                             audio_b64 = base64.b64encode(audio_data).decode("utf-8")
                             
-                            # Process audio with updated Flash model
-                            speech_model = genai.GenerativeModel(
+                            # Process audio with Flash model
+                            speech_model = client.get_generative_model(
                                 model_name="gemini-2.0-flash-live-001",
                                 generation_config={
-                                    "response_modalities": ["AUDIO"],
+                                    "response_modalities": ["TEXT"],
+                                    "temperature": 0.7,
+                                    "top_p": 0.95,
+                                    "top_k": 40,
                                 }
                             )
                             
-                            speech_response = speech_model.generate_content([
-                                app_context,
-                                {"audio": audio_b64}
-                            ])
+                            # Create content with context and audio
+                            contents = [
+                                {"text": app_context},
+                                {"inline_data": {"mime_type": "audio/webm", "data": audio_b64}}
+                            ]
+                            
+                            # Generate response
+                            speech_response = speech_model.generate_content(contents)
                             
                             # Extract the transcribed text
                             transcribed_text = speech_response.text
                             
                             if transcribed_text and transcribed_text.strip():
                                 # Generate a response to the transcribed text
-                                response = model.generate_content([
-                                    app_context,
-                                    f"User question (from voice): {transcribed_text}"
+                                chat_response = speech_model.generate_content([
+                                    {"text": app_context},
+                                    {"text": f"User question (from voice): {transcribed_text}"}
                                 ])
                                 
                                 # Send transcription and response back to client
@@ -254,7 +279,7 @@ async def audio_websocket(websocket: WebSocket):
                                 
                                 await websocket.send_json({
                                     "type": "response",
-                                    "content": response.text
+                                    "content": chat_response.text
                                 })
                         
                         # Reset buffer and update processing time
