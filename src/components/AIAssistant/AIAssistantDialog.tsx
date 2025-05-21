@@ -127,9 +127,26 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
         // Use relative URL for WebSocket to connect through Nginx proxy
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${wsProtocol}//${window.location.host}/ws/audio-stream`;
-        webSocketRef.current = new WebSocket(wsUrl);
+        const ws = new WebSocket(wsUrl);
+        webSocketRef.current = ws;
         
-        webSocketRef.current.onopen = () => {
+        // Add connection timeout
+        const connectionTimeout = setTimeout(() => {
+          if (ws.readyState !== WebSocket.OPEN) {
+            ws.close();
+            toast({
+              title: 'Connection Timeout',
+              description: 'Failed to establish WebSocket connection within timeout period',
+              variant: 'destructive',
+            });
+            setIsRecording(false);
+          }
+        }, 5000);
+        
+        // Setup WebSocket event handlers
+        ws.onopen = () => {
+          clearTimeout(connectionTimeout);
+          
           // Create MediaRecorder once WebSocket is open
           const mediaRecorder = new MediaRecorder(stream, {
             mimeType: 'audio/webm' // Use a widely supported format
@@ -141,8 +158,8 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
           
           // Send audio data when available
           mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0 && webSocketRef.current?.readyState === WebSocket.OPEN) {
-              webSocketRef.current.send(event.data);
+            if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+              ws.send(event.data);
             }
           };
           
@@ -176,31 +193,42 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
         };
         
         // Handle messages from the server
-        webSocketRef.current.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          
-          // Handle transcription message
-          if (data.type === 'transcription') {
-            setMessages(prev => [...prev, { role: 'user', content: `Transcription: ${data.content}` }]);
-          }
-          
-          // Handle response message
-          if (data.type === 'response') {
-            setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
-          }
-          
-          // Handle error message
-          if (data.type === 'error') {
-            toast({
-              title: 'Error',
-              description: data.content,
-              variant: 'destructive',
-            });
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            // Handle status message (ping/connection confirmation)
+            if (data.type === 'status') {
+              console.log('WebSocket status:', data.content);
+              return;
+            }
+            
+            // Handle transcription message
+            if (data.type === 'transcription') {
+              setMessages(prev => [...prev, { role: 'user', content: `Transcription: ${data.content}` }]);
+            }
+            
+            // Handle response message
+            if (data.type === 'response') {
+              setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+            }
+            
+            // Handle error message
+            if (data.type === 'error') {
+              toast({
+                title: 'Error',
+                description: data.content,
+                variant: 'destructive',
+              });
+            }
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
           }
         };
         
         // Handle WebSocket errors
-        webSocketRef.current.onerror = (error) => {
+        ws.onerror = (error) => {
+          clearTimeout(connectionTimeout);
           console.error('WebSocket error:', error);
           toast({
             title: 'Connection Error',
@@ -208,6 +236,20 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
             variant: 'destructive',
           });
           setIsRecording(false);
+        };
+        
+        // Handle WebSocket close
+        ws.onclose = (event) => {
+          clearTimeout(connectionTimeout);
+          console.log('WebSocket closed:', event.code, event.reason);
+          if (isRecording) {
+            toast({
+              title: 'Connection Closed',
+              description: 'Voice connection was closed',
+              variant: 'default',
+            });
+            setIsRecording(false);
+          }
         };
         
       } catch (error) {

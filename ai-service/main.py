@@ -160,6 +160,7 @@ async def process_audio(audio: UploadFile = File(...)):
 async def audio_websocket(websocket: WebSocket):
     """Handle streaming audio for real-time voice processing"""
     await websocket.accept()
+    logger.info("connection open")
     
     # Buffer to accumulate audio chunks
     audio_buffer = io.BytesIO()
@@ -177,70 +178,88 @@ async def audio_websocket(websocket: WebSocket):
         Scheduled Jobs: {json.dumps(app_data.get('scheduled_jobs', []))}
         """
         
+        # Send initial connection confirmation message
+        await websocket.send_json({
+            "type": "status",
+            "content": "Connected to audio stream"
+        })
+        
         while True:
-            # Receive audio chunk
-            audio_chunk = await websocket.receive_bytes()
-            
-            # Add chunk to buffer
-            audio_buffer.write(audio_chunk)
-            
-            # Check if we should process the accumulated audio
-            current_time = asyncio.get_event_loop().time()
-            if current_time - last_process_time >= PROCESS_INTERVAL and audio_buffer.tell() > 0:
-                try:
-                    # Reset buffer position and get data
-                    audio_buffer.seek(0)
-                    audio_data = audio_buffer.getvalue()
-                    
-                    # Convert to base64 for the Gemini API
-                    audio_b64 = base64.b64encode(audio_data).decode("utf-8")
-                    
-                    # Process audio with Gemini 2.0 speech-to-text
-                    speech_model = genai.GenerativeModel("gemini-2.0-pro-vision")
-                    speech_response = speech_model.generate_content([
-                        app_context,
-                        {"audio": audio_b64}
-                    ])
-                    
-                    # Extract the transcribed text
-                    transcribed_text = speech_response.text
-                    
-                    if transcribed_text and transcribed_text.strip():
-                        # Generate a response to the transcribed text
-                        response = model.generate_content([
-                            app_context,
-                            f"User question (from voice): {transcribed_text}"
-                        ])
+            try:
+                # Receive audio chunk with a timeout
+                audio_chunk = await asyncio.wait_for(websocket.receive_bytes(), timeout=5.0)
+                
+                # Add chunk to buffer
+                audio_buffer.write(audio_chunk)
+                
+                # Check if we should process the accumulated audio
+                current_time = asyncio.get_event_loop().time()
+                if current_time - last_process_time >= PROCESS_INTERVAL and audio_buffer.tell() > 0:
+                    try:
+                        # Reset buffer position and get data
+                        audio_buffer.seek(0)
+                        audio_data = audio_buffer.getvalue()
                         
-                        # Send transcription and response back to client
-                        await websocket.send_json({
-                            "type": "transcription",
-                            "content": transcribed_text
-                        })
+                        # Only process if we have enough data (at least 1KB)
+                        if len(audio_data) > 1024:
+                            # Convert to base64 for the Gemini API
+                            audio_b64 = base64.b64encode(audio_data).decode("utf-8")
+                            
+                            # Process audio with Gemini 2.0 speech-to-text
+                            speech_model = genai.GenerativeModel("gemini-2.0-pro-vision")
+                            speech_response = speech_model.generate_content([
+                                app_context,
+                                {"audio": audio_b64}
+                            ])
+                            
+                            # Extract the transcribed text
+                            transcribed_text = speech_response.text
+                            
+                            if transcribed_text and transcribed_text.strip():
+                                # Generate a response to the transcribed text
+                                response = model.generate_content([
+                                    app_context,
+                                    f"User question (from voice): {transcribed_text}"
+                                ])
+                                
+                                # Send transcription and response back to client
+                                await websocket.send_json({
+                                    "type": "transcription",
+                                    "content": transcribed_text
+                                })
+                                
+                                await websocket.send_json({
+                                    "type": "response",
+                                    "content": response.text
+                                })
                         
+                        # Reset buffer and update processing time
+                        audio_buffer = io.BytesIO()
+                        last_process_time = current_time
+                        
+                    except Exception as e:
+                        logger.error(f"Error processing audio stream: {e}")
                         await websocket.send_json({
-                            "type": "response",
-                            "content": response.text
+                            "type": "error",
+                            "content": f"Error processing audio: {str(e)}"
                         })
-                    
-                    # Reset buffer and update processing time
-                    audio_buffer = io.BytesIO()
-                    last_process_time = current_time
-                    
-                except Exception as e:
-                    logger.error(f"Error processing audio stream: {e}")
-                    await websocket.send_json({
-                        "type": "error",
-                        "content": f"Error processing audio: {str(e)}"
-                    })
-            
-            # Small delay to prevent CPU overuse
-            await asyncio.sleep(0.1)
+                
+                # Small delay to prevent CPU overuse
+                await asyncio.sleep(0.1)
+                
+            except asyncio.TimeoutError:
+                # Ping to keep connection alive
+                await websocket.send_json({
+                    "type": "status",
+                    "content": "ping"
+                })
+                continue
             
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
     finally:
         # Clean up
+        logger.info("connection closed")
         try:
             await websocket.close()
         except:
