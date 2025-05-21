@@ -4,6 +4,7 @@ import { AITextResponse, AIAudioResponse } from '@/types/ai';
 
 // API URL paths need to be adjusted to match nginx config
 const API_URL = '/api';
+const AI_API_URL = '/api/ai';
 
 export async function fetchUsers(portal?: string): Promise<User[]> {
   const url = portal 
@@ -250,12 +251,12 @@ export async function fetchAvailableRoles(portal: string): Promise<string[]> {
  * @param message The message to send
  * @returns The AI response
  */
-export async function sendChatMessage(message: string) {
+export async function sendChatMessage(message: string): Promise<AITextResponse> {
   try {
     const formData = new FormData();
     formData.append('message', message);
 
-    const response = await fetch('/api/chat', {
+    const response = await fetch(`${AI_API_URL}/chat`, {
       method: 'POST',
       body: formData,
     });
@@ -279,12 +280,12 @@ export async function sendChatMessage(message: string) {
  * @param audioFile The audio file to send
  * @returns The transcription and AI response
  */
-export async function sendAudioMessage(audioFile: File) {
+export async function sendAudioMessage(audioFile: File): Promise<AIAudioResponse> {
   try {
     const formData = new FormData();
     formData.append('audio', audioFile);
 
-    const response = await fetch('/api/audio', {
+    const response = await fetch(`${AI_API_URL}/audio`, {
       method: 'POST',
       body: formData,
     });

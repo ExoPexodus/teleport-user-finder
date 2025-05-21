@@ -29,6 +29,7 @@ def create_context_prompt(app_data, user_message=None):
 
 def get_gemini_model():
     """Get the Gemini model for text generation with proper configuration"""
+    logger.info(f"Creating Gemini model with name: {MODEL_NAME}")
     return genai.GenerativeModel(
         model_name=MODEL_NAME,
         generation_config=TEXT_GENERATION_CONFIG
@@ -37,6 +38,7 @@ def get_gemini_model():
 async def process_text_request(message, app_data):
     """Process a text request and return the AI response"""
     try:
+        logger.info("Processing text request")
         # Create context prompt
         context_prompt = create_context_prompt(app_data, message)
         
@@ -44,16 +46,19 @@ async def process_text_request(message, app_data):
         model = get_gemini_model()
         
         # Generate response
+        logger.info("Generating content with Gemini")
         response = model.generate_content(contents=context_prompt)
         
+        logger.info("Successfully generated response")
         return {"response": response.text}
     except Exception as e:
         logger.error(f"Error processing text request: {e}")
-        return {"error": str(e)}
+        return {"error": str(e), "response": "Sorry, there was an error processing your request."}
 
 async def process_audio_request(audio_data, app_data):
     """Process an audio request and return the AI response"""
     try:
+        logger.info("Processing audio request")
         # Convert audio data to base64
         audio_b64 = base64.b64encode(audio_data).decode("utf-8")
         
@@ -70,10 +75,12 @@ async def process_audio_request(audio_data, app_data):
         ]
         
         # Generate response for audio transcription
+        logger.info("Generating transcription with Gemini")
         response = model.generate_content(contents)
         transcribed_text = response.text
         
         # Generate response to the transcribed text
+        logger.info(f"Generating response to transcription: {transcribed_text[:30]}...")
         chat_response = model.generate_content([
             {"text": app_context},
             {"text": f"User question (from voice): {transcribed_text}"}
@@ -82,4 +89,4 @@ async def process_audio_request(audio_data, app_data):
         return {"transcription": transcribed_text, "response": chat_response.text}
     except Exception as e:
         logger.error(f"Error processing audio: {e}")
-        return {"error": str(e)}
+        return {"error": str(e), "transcription": "", "response": "Sorry, there was an error processing your audio."}

@@ -29,6 +29,7 @@ async def root():
 async def chat(message: str = Form(...)):
     """Handle text-based chat with the AI"""
     try:
+        logger.info(f"Received chat request with message: {message[:20]}...")
         # Get app data for context
         app_data = await get_application_data()
         
@@ -36,12 +37,13 @@ async def chat(message: str = Form(...)):
         return await process_text_request(message, app_data)
     except Exception as e:
         logger.error(f"Error in chat endpoint: {e}")
-        return {"error": str(e)}
+        return {"error": str(e), "response": "Sorry, an error occurred processing your request."}
 
 @app.post("/api/audio")
 async def process_audio(audio: UploadFile = File(...)):
     """Process audio and respond with AI-generated text"""
     try:
+        logger.info(f"Received audio file: {audio.filename}")
         # Read the audio file
         audio_data = await audio.read()
         
@@ -52,11 +54,12 @@ async def process_audio(audio: UploadFile = File(...)):
         return await process_audio_request(audio_data, app_data)
     except Exception as e:
         logger.error(f"Error processing audio: {e}")
-        return {"error": str(e)}
+        return {"error": str(e), "transcription": "", "response": "Sorry, an error occurred processing your audio."}
 
 @app.websocket("/ws/audio-stream")
 async def audio_websocket(websocket: WebSocket):
     """Handle streaming audio for real-time voice processing"""
+    logger.info("WebSocket connection initiated")
     # Get application data for context
     app_data = await get_application_data()
     
