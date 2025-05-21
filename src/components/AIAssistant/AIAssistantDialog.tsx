@@ -1,12 +1,12 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Sheet, 
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { 
   Tabs, 
   TabsContent, 
@@ -242,7 +242,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
     }
   };
   
-  // Focus input when dialog opens
+  // Focus input when sidebar opens
   useEffect(() => {
     if (open && inputRef.current && activeTab === 'chat') {
       setTimeout(() => {
@@ -252,124 +252,126 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
   }, [open, activeTab]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>AI Assistant</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-[400px] sm:w-[450px] p-0 overflow-hidden flex flex-col" side="right">
+        <SheetHeader className="p-4 border-b">
+          <SheetTitle>AI Assistant</SheetTitle>
+        </SheetHeader>
         
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="chat" className="flex items-center gap-2">
-              <MessageCircle className="h-4 w-4" />
-              <span>Chat</span>
-            </TabsTrigger>
-            <TabsTrigger value="voice" className="flex items-center gap-2">
-              <Mic className="h-4 w-4" />
-              <span>Voice</span>
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="chat" className="space-y-4">
-            {/* Chat Messages */}
-            <ScrollArea className="h-[300px] p-4 rounded border">
-              <div className="space-y-4 pr-4">
-                {messages.map((message, index) => (
-                  <div 
-                    key={index} 
-                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div 
-                      className={`max-w-[80%] rounded-lg p-3 ${
-                        message.role === 'user' 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-muted'
-                      }`}
-                    >
-                      {message.content}
-                    </div>
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-            </ScrollArea>
+        <div className="flex-1 flex flex-col">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+            <TabsList className="grid w-full grid-cols-2 px-4 py-2 border-b">
+              <TabsTrigger value="chat" className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4" />
+                <span>Chat</span>
+              </TabsTrigger>
+              <TabsTrigger value="voice" className="flex items-center gap-2">
+                <Mic className="h-4 w-4" />
+                <span>Voice</span>
+              </TabsTrigger>
+            </TabsList>
             
-            {/* Chat Input */}
-            <div className="flex items-center space-x-2">
-              <Input
-                ref={inputRef}
-                value={inputValue}
-                onChange={e => setInputValue(e.target.value)}
-                placeholder="Type your message here..."
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                disabled={isLoading}
-              />
-              <Button 
-                onClick={handleSendMessage} 
-                disabled={!inputValue.trim() || isLoading}
-                size="icon"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="voice" className="space-y-4">
-            {/* Voice Messages */}
-            <ScrollArea className="h-[300px] p-4 rounded border">
-              <div className="space-y-4 pr-4">
-                {messages.map((message, index) => (
-                  <div 
-                    key={index} 
-                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
+            <TabsContent value="chat" className="flex-1 flex flex-col p-4 space-y-4">
+              {/* Chat Messages */}
+              <ScrollArea className="flex-1 h-[calc(100vh-200px)] p-4 rounded border">
+                <div className="space-y-4 pr-4">
+                  {messages.map((message, index) => (
                     <div 
-                      className={`max-w-[80%] rounded-lg p-3 ${
-                        message.role === 'user' 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-muted'
-                      }`}
+                      key={index} 
+                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
-                      {message.content}
+                      <div 
+                        className={`max-w-[80%] rounded-lg p-3 ${
+                          message.role === 'user' 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'bg-muted'
+                        }`}
+                      >
+                        {message.content}
+                      </div>
                     </div>
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              </ScrollArea>
+              
+              {/* Chat Input */}
+              <div className="flex items-center space-x-2">
+                <Input
+                  ref={inputRef}
+                  value={inputValue}
+                  onChange={e => setInputValue(e.target.value)}
+                  placeholder="Type your message here..."
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  disabled={isLoading}
+                />
+                <Button 
+                  onClick={handleSendMessage} 
+                  disabled={!inputValue.trim() || isLoading}
+                  size="icon"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
               </div>
-            </ScrollArea>
+            </TabsContent>
             
-            {/* Voice Controls */}
-            <div className="flex flex-col items-center space-y-4">
-              <Button
-                onClick={toggleRecording}
-                variant={isRecording ? "destructive" : "default"}
-                className="w-16 h-16 rounded-full"
-                disabled={isLoading}
-              >
-                {isRecording ? (
-                  <MicOff className="h-6 w-6" />
-                ) : (
-                  <Mic className="h-6 w-6" />
-                )}
-              </Button>
-              <p className="text-sm text-muted-foreground">
-                {isRecording ? "Tap to stop recording" : "Tap to start recording"}
-              </p>
-            </div>
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="voice" className="flex-1 flex flex-col p-4 space-y-4">
+              {/* Voice Messages */}
+              <ScrollArea className="flex-1 h-[calc(100vh-200px)] p-4 rounded border">
+                <div className="space-y-4 pr-4">
+                  {messages.map((message, index) => (
+                    <div 
+                      key={index} 
+                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div 
+                        className={`max-w-[80%] rounded-lg p-3 ${
+                          message.role === 'user' 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'bg-muted'
+                        }`}
+                      >
+                        {message.content}
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              </ScrollArea>
+              
+              {/* Voice Controls */}
+              <div className="flex flex-col items-center space-y-4">
+                <Button
+                  onClick={toggleRecording}
+                  variant={isRecording ? "destructive" : "default"}
+                  className="w-16 h-16 rounded-full"
+                  disabled={isLoading}
+                >
+                  {isRecording ? (
+                    <MicOff className="h-6 w-6" />
+                  ) : (
+                    <Mic className="h-6 w-6" />
+                  )}
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  {isRecording ? "Tap to stop recording" : "Tap to start recording"}
+                </p>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
         
-        <DialogFooter className="sm:justify-start">
+        <SheetFooter className="border-t p-4">
           <div className="text-sm text-muted-foreground">
             AI assistant will answer questions about your Teleport application.
           </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 };
