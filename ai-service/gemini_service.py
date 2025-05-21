@@ -1,0 +1,94 @@
+
+import google.generativeai as genai
+import json
+import base64
+import logging
+from config import GEMINI_API_KEY, MODEL_NAME, SYSTEM_INSTRUCTION, TEXT_GENERATION_CONFIG
+
+logger = logging.getLogger(__name__)
+
+# Configure Gemini API
+if not GEMINI_API_KEY:
+    logger.warning("GEMINI_API_KEY not set, using demo mode with limited functionality")
+genai.configure(api_key=GEMINI_API_KEY)
+
+def create_context_prompt(app_data, user_message=None):
+    """Create a prompt with system instruction and application data"""
+    prompt = f"""
+    {SYSTEM_INSTRUCTION}
+    
+    Here is the current state of the application:
+    Users: {json.dumps(app_data.get('users', []))}
+    Scheduled Jobs: {json.dumps(app_data.get('scheduled_jobs', []))}
+    """
+    
+    if user_message:
+        prompt += f"\nUser question: {user_message}"
+        
+    return prompt
+
+def get_gemini_client():
+    """Create and return a Gemini client"""
+    return genai.Client()
+
+def get_text_model(client):
+    """Get the model for text generation with proper configuration"""
+    return client.get_generative_model(
+        model_name=MODEL_NAME,
+        generation_config=TEXT_GENERATION_CONFIG
+    )
+
+async def process_text_request(message, app_data):
+    """Process a text request and return the AI response"""
+    try:
+        # Create context prompt
+        context_prompt = create_context_prompt(app_data, message)
+        
+        # Get client and model
+        client = get_gemini_client()
+        model = get_text_model(client)
+        
+        # Generate response
+        response = model.generate_content(contents=context_prompt)
+        
+        return {"response": response.text}
+    except Exception as e:
+        logger.error(f"Error processing text request: {e}")
+        return {"error": str(e)}
+
+async def process_audio_request(audio_data, app_data):
+    """Process an audio request and return the AI response"""
+    try:
+        # Convert audio data to base64
+        audio_b64 = base64.b64encode(audio_data).decode("utf-8")
+        
+        # Create context
+        app_context = create_context_prompt(app_data)
+        
+        # Get client and model
+        client = get_gemini_client()
+        speech_model = client.get_generative_model(
+            model_name=MODEL_NAME,
+            generation_config=TEXT_GENERATION_CONFIG
+        )
+        
+        # Create content parts
+        contents = [
+            {"text": app_context},
+            {"inline_data": {"mime_type": "audio/mp3", "data": audio_b64}}
+        ]
+        
+        # Generate response for audio transcription
+        response = speech_model.generate_content(contents)
+        transcribed_text = response.text
+        
+        # Generate response to the transcribed text
+        chat_response = speech_model.generate_content([
+            {"text": app_context},
+            {"text": f"User question (from voice): {transcribed_text}"}
+        ])
+        
+        return {"transcription": transcribed_text, "response": chat_response.text}
+    except Exception as e:
+        logger.error(f"Error processing audio: {e}")
+        return {"error": str(e)}
