@@ -61,7 +61,7 @@ model = genai.GenerativeModel(
         "temperature": 0.7,
         "top_p": 0.95,
         "top_k": 40,
-        "response_modalities": ["text"],  # Configure to output text responses
+        "response_modalities": ["TEXT"],  # Configure to output text responses
     },
 )
 
@@ -140,7 +140,7 @@ async def process_audio(audio: UploadFile = File(...)):
         speech_model = genai.GenerativeModel(
             model_name="gemini-2.0-flash-live-001",
             generation_config={
-                "response_modalities": ["text"],
+                "response_modalities": ["AUDIO"],
             }
         )
         
@@ -227,7 +227,7 @@ async def audio_websocket(websocket: WebSocket):
                             speech_model = genai.GenerativeModel(
                                 model_name="gemini-2.0-flash-live-001",
                                 generation_config={
-                                    "response_modalities": ["text"],
+                                    "response_modalities": ["AUDIO"],
                                 }
                             )
                             
