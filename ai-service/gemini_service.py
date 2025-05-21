@@ -27,13 +27,9 @@ def create_context_prompt(app_data, user_message=None):
         
     return prompt
 
-def get_gemini_client():
-    """Create and return a Gemini client"""
-    return genai.Client()
-
-def get_text_model(client):
-    """Get the model for text generation with proper configuration"""
-    return client.get_generative_model(
+def get_gemini_model():
+    """Get the Gemini model for text generation with proper configuration"""
+    return genai.GenerativeModel(
         model_name=MODEL_NAME,
         generation_config=TEXT_GENERATION_CONFIG
     )
@@ -44,9 +40,8 @@ async def process_text_request(message, app_data):
         # Create context prompt
         context_prompt = create_context_prompt(app_data, message)
         
-        # Get client and model
-        client = get_gemini_client()
-        model = get_text_model(client)
+        # Get model
+        model = get_gemini_model()
         
         # Generate response
         response = model.generate_content(contents=context_prompt)
@@ -65,25 +60,21 @@ async def process_audio_request(audio_data, app_data):
         # Create context
         app_context = create_context_prompt(app_data)
         
-        # Get client and model
-        client = get_gemini_client()
-        speech_model = client.get_generative_model(
-            model_name=MODEL_NAME,
-            generation_config=TEXT_GENERATION_CONFIG
-        )
+        # Get model
+        model = get_gemini_model()
         
-        # Create content parts
+        # Create content parts for multimodal input
         contents = [
             {"text": app_context},
             {"inline_data": {"mime_type": "audio/mp3", "data": audio_b64}}
         ]
         
         # Generate response for audio transcription
-        response = speech_model.generate_content(contents)
+        response = model.generate_content(contents)
         transcribed_text = response.text
         
         # Generate response to the transcribed text
-        chat_response = speech_model.generate_content([
+        chat_response = model.generate_content([
             {"text": app_context},
             {"text": f"User question (from voice): {transcribed_text}"}
         ])

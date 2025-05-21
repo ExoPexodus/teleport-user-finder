@@ -29,12 +29,12 @@ Respond concisely and accurately.
 """
 
 # Gemini model configuration
-MODEL_NAME = "gemini-2.0-flash-live-001"
+MODEL_NAME = "gemini-1.5-flash"
 TEXT_GENERATION_CONFIG = {
-    "response_modalities": ["TEXT"],
     "temperature": 0.7,
     "top_p": 0.95,
     "top_k": 40,
+    "max_output_tokens": 1024,
 }
 
 # Processing intervals for audio

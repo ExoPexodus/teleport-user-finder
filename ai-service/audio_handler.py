@@ -56,19 +56,8 @@ async def handle_audio_stream(websocket, app_data):
                             # Convert to base64 for the Gemini API
                             audio_b64 = base64.b64encode(audio_data).decode("utf-8")
                             
-                            # Get client for speech processing
-                            client = gemini_service.get_gemini_client()
-                            
-                            # Process audio with Flash model
-                            speech_model = client.get_generative_model(
-                                model_name="gemini-2.0-flash-live-001",
-                                generation_config={
-                                    "response_modalities": ["TEXT"],
-                                    "temperature": 0.7,
-                                    "top_p": 0.95,
-                                    "top_k": 40,
-                                }
-                            )
+                            # Get model for speech processing
+                            model = gemini_service.get_gemini_model()
                             
                             # Create content with context and audio
                             app_context = gemini_service.create_context_prompt(app_data)
@@ -78,14 +67,14 @@ async def handle_audio_stream(websocket, app_data):
                             ]
                             
                             # Generate response
-                            speech_response = speech_model.generate_content(contents)
+                            speech_response = model.generate_content(contents)
                             
                             # Extract the transcribed text
                             transcribed_text = speech_response.text
                             
                             if transcribed_text and transcribed_text.strip():
                                 # Generate a response to the transcribed text
-                                chat_response = speech_model.generate_content([
+                                chat_response = model.generate_content([
                                     {"text": app_context},
                                     {"text": f"User question (from voice): {transcribed_text}"}
                                 ])

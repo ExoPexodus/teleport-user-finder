@@ -21,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { sendChatMessage, sendAudioMessage } from "@/lib/api";
 import { AIWebSocketMessage } from "@/types/ai";
+import { AudioVisualizer } from "./AudioVisualizer";
 
 interface AIAssistantDialogProps {
   open: boolean;
@@ -39,6 +40,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('disconnected');
+  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -253,11 +255,18 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
             // Handle transcription message
             if (data.type === 'transcription') {
               setMessages(prev => [...prev, { role: 'user', content: `Transcription: ${data.content}` }]);
+              setIsAiSpeaking(false);
             }
             
             // Handle response message
             if (data.type === 'response') {
               setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+              setIsAiSpeaking(true);
+              
+              // Add a delay and then turn off the visualizer
+              setTimeout(() => {
+                setIsAiSpeaking(false);
+              }, 5000);
             }
             
             // Handle error message
@@ -548,6 +557,14 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
                   </span>
                 </div>
                 
+                {/* Audio visualizer */}
+                <div className="w-full flex justify-center mb-2">
+                  <AudioVisualizer 
+                    isActive={isAiSpeaking} 
+                    color="#3b82f6"
+                  />
+                </div>
+                
                 <Button
                   onClick={toggleRecording}
                   variant={isRecording ? "destructive" : "default"}
@@ -568,7 +585,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
                   {isRecording ? "Tap to stop recording" : "Tap to start recording"}
                 </p>
                 <p className="text-xs text-muted-foreground text-center">
-                  Speech is processed in real-time with Gemini Flash
+                  Speech is processed in real-time with Gemini
                 </p>
               </div>
             </TabsContent>
@@ -577,7 +594,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
         
         <SheetFooter className="border-t px-6 py-4">
           <div className="text-xs text-muted-foreground w-full text-center">
-            AI assistant powered by Gemini Flash
+            AI assistant powered by Gemini
           </div>
         </SheetFooter>
       </SheetContent>
