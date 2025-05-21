@@ -280,18 +280,31 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
         
         <div className="flex-1 flex flex-col">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-            <TabsList className="grid w-full grid-cols-2 px-6 py-2">
-              <TabsTrigger value="chat" className="flex items-center gap-2">
-                <MessageCircle className="h-4 w-4" />
-                <span>Chat</span>
-              </TabsTrigger>
-              <TabsTrigger value="voice" className="flex items-center gap-2">
-                <Mic className="h-4 w-4" />
-                <span>Voice</span>
-              </TabsTrigger>
-            </TabsList>
+            {/* Fixed tab alignment */}
+            <div className="border-b">
+              <TabsList className="w-full grid grid-cols-2 rounded-none bg-transparent h-12">
+                <TabsTrigger 
+                  value="chat" 
+                  className="rounded-none data-[state=active]:bg-background data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-teleport-blue h-12 font-medium"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <MessageCircle className="h-4 w-4" />
+                    <span>Chat</span>
+                  </div>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="voice" 
+                  className="rounded-none data-[state=active]:bg-background data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-teleport-blue h-12 font-medium"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Mic className="h-4 w-4" />
+                    <span>Voice</span>
+                  </div>
+                </TabsTrigger>
+              </TabsList>
+            </div>
             
-            <TabsContent value="chat" className="flex-1 flex flex-col px-6 py-4 space-y-4">
+            <TabsContent value="chat" className="flex-1 flex flex-col px-6 py-4 space-y-4 mt-0 border-none">
               {/* Chat Messages Area */}
               <ScrollArea className="flex-1 pr-4">
                 <div className="space-y-4 min-h-[calc(100vh-280px)]">
@@ -358,7 +371,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
               </div>
             </TabsContent>
             
-            <TabsContent value="voice" className="flex-1 flex flex-col p-4 space-y-4">
+            <TabsContent value="voice" className="flex-1 flex flex-col px-6 py-4 space-y-4 mt-0 border-none">
               {/* Voice Messages */}
               <ScrollArea className="flex-1 px-2">
                 <div className="space-y-4 min-h-[calc(100vh-280px)]">
