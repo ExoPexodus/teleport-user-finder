@@ -123,8 +123,11 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
         // Request microphone access
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        // Setup WebSocket connection
-        webSocketRef.current = new WebSocket(`ws://${window.location.hostname}:8000/ws/audio-stream`);
+        // Setup WebSocket connection through Nginx proxy instead of direct connection
+        // Use relative URL for WebSocket to connect through Nginx proxy
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws/audio-stream`;
+        webSocketRef.current = new WebSocket(wsUrl);
         
         webSocketRef.current.onopen = () => {
           // Create MediaRecorder once WebSocket is open
