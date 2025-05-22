@@ -6,7 +6,6 @@ import {
   SheetHeader,
   SheetTitle,
   SheetFooter,
-  SheetDescription,
 } from "@/components/ui/sheet";
 import { 
   Tabs, 
@@ -20,13 +19,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Mic, MicOff, MessageCircle, Send, Paperclip } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { sendChatMessage, sendAudioMessage, getWebSocketUrl } from "@/lib/api";
-import { AIWebSocketMessage } from "@/types/ai";
-import { AudioVisualizer } from "./AudioVisualizer";
-
-// Adding accessibility descriptions
-const VOICE_SESSION_DESCRIPTION = "Voice session allows you to speak with the AI assistant using your microphone.";
-const CHAT_SESSION_DESCRIPTION = "Chat with the AI assistant by typing messages.";
 
 interface AIAssistantDialogProps {
   open: boolean;
@@ -44,9 +36,6 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
   const [inputValue, setInputValue] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('disconnected');
-  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
-  const [isSessionStarted, setIsSessionStarted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -56,10 +45,6 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
   
   // MediaRecorder reference for voice recording
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  
-  // Timeout references
-  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Auto-scroll to bottom of messages
   useEffect(() => {
@@ -77,234 +62,8 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
       if (mediaRecorderRef.current && isRecording) {
         mediaRecorderRef.current.stop();
       }
-      if (connectionTimeoutRef.current) {
-        clearTimeout(connectionTimeoutRef.current);
-      }
-      if (pingTimeoutRef.current) {
-        clearTimeout(pingTimeoutRef.current);
-      }
-      setIsSessionStarted(false);
     };
   }, [isRecording]);
-  
-  // Start a voice session
-  const startVoiceSession = async () => {
-    if (isSessionStarted) return;
-    
-    setIsSessionStarted(true);
-    try {
-      // Set connecting status
-      setConnectionStatus('connecting');
-      
-      // Setup WebSocket connection using the dynamic function from api.ts
-      const wsUrl = getWebSocketUrl('audio-stream');
-      console.log("Connecting to WebSocket URL:", wsUrl);
-      
-      const ws = new WebSocket(wsUrl);
-      webSocketRef.current = ws;
-      
-      // Add connection timeout - 5 seconds to establish connection
-      connectionTimeoutRef.current = setTimeout(() => {
-        if (ws.readyState !== WebSocket.OPEN) {
-          ws.close();
-          toast({
-            title: 'Connection Timeout',
-            description: 'Failed to establish WebSocket connection within timeout period',
-            variant: 'destructive',
-          });
-          setIsSessionStarted(false);
-          setConnectionStatus('disconnected');
-        }
-        connectionTimeoutRef.current = null;
-      }, 5000);
-      
-      // Setup ping timeout - if no ping received within 30 seconds, close connection
-      const resetPingTimeout = () => {
-        if (pingTimeoutRef.current) {
-          clearTimeout(pingTimeoutRef.current);
-        }
-        pingTimeoutRef.current = setTimeout(() => {
-          if (webSocketRef.current) {
-            webSocketRef.current.close();
-            toast({
-              title: 'Connection Lost',
-              description: 'Lost connection to the voice service',
-              variant: 'destructive',
-            });
-            setIsRecording(false);
-            setIsSessionStarted(false);
-            setConnectionStatus('disconnected');
-          }
-          pingTimeoutRef.current = null;
-        }, 30000);
-      };
-      
-      // Start ping timeout when connection opens
-      resetPingTimeout();
-      
-      // Setup WebSocket event handlers
-      ws.onopen = () => {
-        if (connectionTimeoutRef.current) {
-          clearTimeout(connectionTimeoutRef.current);
-          connectionTimeoutRef.current = null;
-        }
-        
-        setConnectionStatus('connected');
-        
-        // Add welcome message
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: 'Voice session started. Press the microphone button to start recording.' 
-        }]);
-        
-        // Send a ping to keep the connection alive
-        const keepAlive = () => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "ping" }));
-            setTimeout(keepAlive, 20000); // Send ping every 20 seconds
-          }
-        };
-        keepAlive();
-      };
-      
-      // Handle messages from the server
-      ws.onmessage = (event) => {
-        try {
-          // Reset ping timeout on any message
-          resetPingTimeout();
-          
-          const data = JSON.parse(event.data) as AIWebSocketMessage;
-          console.log("Received WebSocket message:", data);
-          
-          // Handle status message (ping/connection confirmation)
-          if (data.type === 'status') {
-            console.log('WebSocket status:', data.content);
-            return;
-          }
-          
-          // Handle transcription message
-          if (data.type === 'transcription') {
-            setMessages(prev => [...prev, { role: 'user', content: `Transcription: ${data.content}` }]);
-            setIsAiSpeaking(false);
-          }
-          
-          // Handle response message
-          if (data.type === 'stream') {
-            const lastMessage = messages[messages.length - 1];
-            if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content.endsWith('...')) {
-              // Append to the existing message
-              setMessages(prev => {
-                const newMessages = [...prev];
-                newMessages[newMessages.length - 1].content = newMessages[newMessages.length - 1].content.replace('...', '') + data.content;
-                return newMessages;
-              });
-            } else {
-              // Create a new message
-              setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
-            }
-            setIsAiSpeaking(true);
-          }
-          
-          // Handle TTS audio
-          if (data.type === 'tts') {
-            // Play the audio
-            const audio = new Audio(`data:audio/mp3;base64,${data.content}`);
-            audio.play();
-            setIsAiSpeaking(true);
-            
-            // Once audio finishes playing
-            audio.onended = () => {
-              setIsAiSpeaking(false);
-            };
-          }
-          
-          // Handle error message
-          if (data.type === 'error') {
-            toast({
-              title: 'Error',
-              description: data.content,
-              variant: 'destructive',
-            });
-          }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-      
-      // Handle WebSocket errors
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        toast({
-          title: 'Connection Error',
-          description: 'Failed to connect to voice service',
-          variant: 'destructive',
-        });
-        setIsRecording(false);
-        setIsSessionStarted(false);
-        setConnectionStatus('disconnected');
-        
-        if (connectionTimeoutRef.current) {
-          clearTimeout(connectionTimeoutRef.current);
-          connectionTimeoutRef.current = null;
-        }
-        if (pingTimeoutRef.current) {
-          clearTimeout(pingTimeoutRef.current);
-          pingTimeoutRef.current = null;
-        }
-      };
-      
-      // Handle WebSocket close
-      ws.onclose = (event) => {
-        console.log('WebSocket closed:', event.code, event.reason);
-        setConnectionStatus('disconnected');
-        setIsSessionStarted(false);
-        
-        if (isRecording) {
-          toast({
-            title: 'Connection Closed',
-            description: 'Voice connection was closed',
-            variant: 'default',
-          });
-          setIsRecording(false);
-        }
-        
-        if (connectionTimeoutRef.current) {
-          clearTimeout(connectionTimeoutRef.current);
-          connectionTimeoutRef.current = null;
-        }
-        if (pingTimeoutRef.current) {
-          clearTimeout(pingTimeoutRef.current);
-          pingTimeoutRef.current = null;
-        }
-      };
-    } catch (error) {
-      console.error('Error setting up voice session:', error);
-      toast({
-        title: 'Connection Error',
-        description: 'Failed to set up voice session',
-        variant: 'destructive',
-      });
-      setIsSessionStarted(false);
-      setConnectionStatus('disconnected');
-    }
-  };
-  
-  // End the voice session
-  const endVoiceSession = () => {
-    if (webSocketRef.current) {
-      webSocketRef.current.close();
-    }
-    if (isRecording) {
-      toggleRecording();
-    }
-    setIsSessionStarted(false);
-    setConnectionStatus('disconnected');
-    toast({
-      title: 'Session Ended',
-      description: 'Voice session has ended',
-      variant: 'default',
-    });
-  };
   
   // Handle sending text messages
   const handleSendMessage = async () => {
@@ -318,8 +77,20 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
       setMessages(prev => [...prev, userMessage]);
       setInputValue('');
       
-      // Send message to API using the api.ts function
-      const data = await sendChatMessage(inputValue);
+      // Send message to API
+      const formData = new FormData();
+      formData.append('message', inputValue);
+      
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
+      
+      const data = await response.json();
       
       // Add AI response to chat
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
@@ -338,70 +109,149 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
   
   // Handle starting/stopping voice recording
   const toggleRecording = async () => {
-    // If WebSocket is not connected, don't allow recording
-    if (!isSessionStarted || webSocketRef.current?.readyState !== WebSocket.OPEN) {
-      toast({
-        title: 'Not Connected',
-        description: 'Please start a voice session first',
-        variant: 'default',
-      });
-      return;
-    }
-    
     if (isRecording) {
       // Stop recording
       if (mediaRecorderRef.current) {
         mediaRecorderRef.current.stop();
       }
+      if (webSocketRef.current) {
+        webSocketRef.current.close();
+      }
       setIsRecording(false);
-      
-      // Update the last user message to show recording stopped
-      setMessages(prev => {
-        const newMessages = [...prev];
-        // Find the last recording message
-        let lastRecordingIndex = -1;
-        for (let i = newMessages.length - 1; i >= 0; i--) {
-          if (newMessages[i].role === 'user' && newMessages[i].content === '🎤 Recording...') {
-            lastRecordingIndex = i;
-            break;
-          }
-        }
-        
-        if (lastRecordingIndex !== -1) {
-          newMessages[lastRecordingIndex].content = '🎤 Voice message sent';
-        }
-        return newMessages;
-      });
     } else {
       try {
         // Request microphone access
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        // Create MediaRecorder
-        const mediaRecorder = new MediaRecorder(stream, {
-          mimeType: 'audio/webm' // Use a widely supported format
-        });
-        mediaRecorderRef.current = mediaRecorder;
+        // Setup WebSocket connection through Nginx proxy instead of direct connection
+        // Use relative URL for WebSocket to connect through Nginx proxy
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws/audio-stream`;
+        const ws = new WebSocket(wsUrl);
+        webSocketRef.current = ws;
         
-        // Add user message to indicate recording started
-        setMessages(prev => [...prev, { role: 'user', content: '🎤 Recording...' }]);
+        // Add connection timeout
+        const connectionTimeout = setTimeout(() => {
+          if (ws.readyState !== WebSocket.OPEN) {
+            ws.close();
+            toast({
+              title: 'Connection Timeout',
+              description: 'Failed to establish WebSocket connection within timeout period',
+              variant: 'destructive',
+            });
+            setIsRecording(false);
+          }
+        }, 5000);
         
-        // Send audio data when available
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0 && webSocketRef.current?.readyState === WebSocket.OPEN) {
-            webSocketRef.current.send(event.data);
+        // Setup WebSocket event handlers
+        ws.onopen = () => {
+          clearTimeout(connectionTimeout);
+          
+          // Create MediaRecorder once WebSocket is open
+          const mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'audio/webm' // Use a widely supported format
+          });
+          mediaRecorderRef.current = mediaRecorder;
+          
+          // Add user message to indicate recording started
+          setMessages(prev => [...prev, { role: 'user', content: '🎤 Recording...' }]);
+          
+          // Send audio data when available
+          mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+              ws.send(event.data);
+            }
+          };
+          
+          // Handle MediaRecorder stop
+          mediaRecorder.onstop = () => {
+            // Update the last user message to show recording stopped
+            setMessages(prev => {
+              const newMessages = [...prev];
+              // Find the last recording message
+              let lastRecordingIndex = -1;
+              for (let i = newMessages.length - 1; i >= 0; i--) {
+                if (newMessages[i].role === 'user' && newMessages[i].content === '🎤 Recording...') {
+                  lastRecordingIndex = i;
+                  break;
+                }
+              }
+              
+              if (lastRecordingIndex !== -1) {
+                newMessages[lastRecordingIndex].content = '🎤 Voice message sent';
+              }
+              return newMessages;
+            });
+            
+            // Stop all audio tracks
+            stream.getTracks().forEach(track => track.stop());
+          };
+          
+          // Start recording with shorter chunks for more responsive interaction
+          mediaRecorder.start(500); // Collect 500ms chunks
+          setIsRecording(true);
+        };
+        
+        // Handle messages from the server
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            // Handle status message (ping/connection confirmation)
+            if (data.type === 'status') {
+              console.log('WebSocket status:', data.content);
+              return;
+            }
+            
+            // Handle transcription message
+            if (data.type === 'transcription') {
+              setMessages(prev => [...prev, { role: 'user', content: `Transcription: ${data.content}` }]);
+            }
+            
+            // Handle response message
+            if (data.type === 'response') {
+              setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+            }
+            
+            // Handle error message
+            if (data.type === 'error') {
+              toast({
+                title: 'Error',
+                description: data.content,
+                variant: 'destructive',
+              });
+            }
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
           }
         };
         
-        // Handle MediaRecorder stop
-        mediaRecorder.onstop = () => {
-          // Stop all audio tracks
-          stream.getTracks().forEach(track => track.stop());
+        // Handle WebSocket errors
+        ws.onerror = (error) => {
+          clearTimeout(connectionTimeout);
+          console.error('WebSocket error:', error);
+          toast({
+            title: 'Connection Error',
+            description: 'Failed to connect to voice service',
+            variant: 'destructive',
+          });
+          setIsRecording(false);
         };
         
-        // Start recording with shorter chunks for more responsive interaction
-        mediaRecorder.start(500); // Collect 500ms chunks
-        setIsRecording(true);
+        // Handle WebSocket close
+        ws.onclose = (event) => {
+          clearTimeout(connectionTimeout);
+          console.log('WebSocket closed:', event.code, event.reason);
+          if (isRecording) {
+            toast({
+              title: 'Connection Closed',
+              description: 'Voice connection was closed',
+              variant: 'default',
+            });
+            setIsRecording(false);
+          }
+        };
+        
       } catch (error) {
         console.error('Error accessing microphone:', error);
         toast({
@@ -421,8 +271,21 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
       // Add user message to chat
       setMessages(prev => [...prev, { role: 'user', content: '🎤 Uploaded voice message' }]);
       
-      // Send to API using the api.ts function
-      const data = await sendAudioMessage(file);
+      // Create form data
+      const formData = new FormData();
+      formData.append('audio', file);
+      
+      // Send to API
+      const response = await fetch('/api/ai/audio', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to process audio');
+      }
+      
+      const data = await response.json();
       
       // Add transcription and response to chat
       setMessages(prev => [
@@ -485,23 +348,11 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
     }
   };
 
-  // Get connection status indicator color
-  const getConnectionStatusColor = () => {
-    switch (connectionStatus) {
-      case 'connected': return 'bg-green-500';
-      case 'connecting': return 'bg-yellow-500';
-      case 'disconnected': return 'bg-gray-400';
-    }
-  };
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-[400px] sm:w-[450px] p-0 flex flex-col h-full overflow-hidden border-l shadow-lg" side="right">
         <SheetHeader className="px-6 py-4 border-b">
           <SheetTitle>AI Assistant</SheetTitle>
-          <SheetDescription>
-            Ask questions about Teleport or use voice mode to speak with the assistant.
-          </SheetDescription>
         </SheetHeader>
         
         <div className="flex-1 flex flex-col">
@@ -625,44 +476,6 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
               
               {/* Voice Controls */}
               <div className="flex flex-col items-center space-y-4 p-4 border-t">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className={`w-3 h-3 rounded-full ${getConnectionStatusColor()}`}></div>
-                  <span className="text-sm text-muted-foreground">
-                    {connectionStatus === 'connected' ? 'Connected' : 
-                     connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-                  </span>
-                </div>
-                
-                {/* Session control buttons */}
-                {!isSessionStarted ? (
-                  <Button
-                    onClick={startVoiceSession}
-                    variant="default"
-                    className="bg-teleport-blue hover:bg-teleport-darkblue mb-2"
-                    disabled={isSessionStarted || connectionStatus === 'connecting'}
-                  >
-                    Start Voice Session
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={endVoiceSession}
-                    variant="outline"
-                    className="mb-2"
-                    disabled={connectionStatus === 'disconnected'}
-                  >
-                    End Voice Session
-                  </Button>
-                )}
-                
-                {/* Audio visualizer */}
-                <div className="w-full flex justify-center mb-2">
-                  <AudioVisualizer 
-                    isActive={isAiSpeaking || isRecording} 
-                    color={isRecording ? "#ef4444" : "#3b82f6"}
-                  />
-                </div>
-                
-                {/* Recording button - only enabled when session is started */}
                 <Button
                   onClick={toggleRecording}
                   variant={isRecording ? "destructive" : "default"}
@@ -671,7 +484,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
                       ? 'bg-red-500 hover:bg-red-600' 
                       : 'bg-teleport-blue hover:bg-teleport-darkblue'
                   }`}
-                  disabled={!isSessionStarted || connectionStatus !== 'connected'}
+                  disabled={isLoading}
                 >
                   {isRecording ? (
                     <MicOff className="h-6 w-6" />
@@ -683,7 +496,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
                   {isRecording ? "Tap to stop recording" : "Tap to start recording"}
                 </p>
                 <p className="text-xs text-muted-foreground text-center">
-                  Speech is processed in real-time with Gemini
+                  Speech is processed in real-time with Gemini 2.0
                 </p>
               </div>
             </TabsContent>
@@ -692,7 +505,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
         
         <SheetFooter className="border-t px-6 py-4">
           <div className="text-xs text-muted-foreground w-full text-center">
-            AI assistant powered by Gemini
+            AI assistant powered by Gemini 2.0
           </div>
         </SheetFooter>
       </SheetContent>

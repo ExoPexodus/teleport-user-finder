@@ -1,7 +1,7 @@
 
 fastapi==0.110.0
 uvicorn==0.27.1
-google-generativeai==0.3.2
+google-generativeai==0.8.5
 python-multipart==0.0.9
 websockets==12.0
 numpy==1.26.4
@@ -9,5 +9,3 @@ pyaudio==0.2.14
 soundfile==0.12.1
 requests==2.31.0
 pydub==0.25.1
-httpx
-google-cloud-texttospeech

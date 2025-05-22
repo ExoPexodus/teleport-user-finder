@@ -5,16 +5,6 @@ import { AITextResponse, AIAudioResponse } from '@/types/ai';
 // API URL paths need to be adjusted to match nginx config
 const API_URL = '/api';
 
-// Update these URLs to use relative paths that will work in any environment
-// This ensures they'll work in both development and production
-const AI_API_URL = '/api/ai';
-const WS_BASE_URL = window.location.protocol === 'https:' 
-  ? `wss://${window.location.host}/ws` 
-  : `ws://${window.location.host}/ws`;
-
-// Export the WebSocket URL for use in other components
-export const getWebSocketUrl = (endpoint: string) => `${WS_BASE_URL}/${endpoint}`;
-
 export async function fetchUsers(portal?: string): Promise<User[]> {
   const url = portal 
     ? `${API_URL}/users?portal=${encodeURIComponent(portal)}` 
@@ -255,71 +245,34 @@ export async function fetchAvailableRoles(portal: string): Promise<string[]> {
 
 // AI API functions
 
-/**
- * Send a chat message to the AI assistant
- * @param message The message to send
- * @returns The AI response
- */
 export async function sendChatMessage(message: string): Promise<AITextResponse> {
-  try {
-    const formData = new FormData();
-    formData.append('message', message);
-
-    const response = await fetch(`${AI_API_URL}/chat`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.error) {
-      console.error('Error from AI service:', data.error);
-      throw new Error(data.error);
-    }
-    
-    return data;
-  } catch (error) {
-    console.error('Error sending chat message:', error);
-    return { response: "Sorry, I'm having trouble processing your request right now. Please try again later." };
+  const formData = new FormData();
+  formData.append('message', message);
+  
+  const response = await fetch('/api/ai/chat', {
+    method: 'POST',
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to get AI response');
   }
+  
+  return response.json();
 }
 
-/**
- * Send an audio file to the AI assistant
- * @param audioFile The audio file to send
- * @returns The transcription and AI response
- */
 export async function sendAudioMessage(audioFile: File): Promise<AIAudioResponse> {
-  try {
-    const formData = new FormData();
-    formData.append('audio', audioFile);
-
-    const response = await fetch(`${AI_API_URL}/audio`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.error) {
-      console.error('Error from AI service:', data.error);
-      throw new Error(data.error);
-    }
-    
-    return data;
-  } catch (error) {
-    console.error('Error sending audio message:', error);
-    return { 
-      transcription: "Could not transcribe audio", 
-      response: "Sorry, I'm having trouble processing your audio right now. Please try again later." 
-    };
+  const formData = new FormData();
+  formData.append('audio', audioFile);
+  
+  const response = await fetch('/api/ai/audio', {
+    method: 'POST',
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to process audio message');
   }
+  
+  return response.json();
 }
