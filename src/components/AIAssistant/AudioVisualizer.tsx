@@ -12,6 +12,20 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [bars, setBars] = useState<number[]>(Array(20).fill(2));
+  const [animationActive, setAnimationActive] = useState(false);
+
+  // Effect to handle animation state with a slight delay when isActive changes
+  useEffect(() => {
+    if (isActive) {
+      setAnimationActive(true);
+    } else {
+      // Small delay before stopping animation to allow for smooth transition
+      const timeout = setTimeout(() => {
+        setAnimationActive(false);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [isActive]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -33,7 +47,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       now = currentTime;
 
       // Only animate when active
-      if (isActive) {
+      if (animationActive) {
         // Update bars
         setBars(prevBars => 
           prevBars.map(height => {
@@ -77,7 +91,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     return () => {
       window.cancelAnimationFrame(animationFrameId);
     };
-  }, [isActive, color, bars]);
+  }, [animationActive, color, bars]);
 
   return (
     <canvas

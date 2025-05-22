@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Sheet, 
@@ -41,6 +40,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('disconnected');
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [isSessionStarted, setIsSessionStarted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -77,8 +77,227 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
       if (pingTimeoutRef.current) {
         clearTimeout(pingTimeoutRef.current);
       }
+      setIsSessionStarted(false);
     };
   }, [isRecording]);
+  
+  // Start a voice session
+  const startVoiceSession = async () => {
+    if (isSessionStarted) return;
+    
+    setIsSessionStarted(true);
+    try {
+      // Set connecting status
+      setConnectionStatus('connecting');
+      
+      // Setup WebSocket connection
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${wsProtocol}//${window.location.host}/ws/audio-stream`;
+      
+      const ws = new WebSocket(wsUrl);
+      webSocketRef.current = ws;
+      
+      // Add connection timeout - 5 seconds to establish connection
+      connectionTimeoutRef.current = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          ws.close();
+          toast({
+            title: 'Connection Timeout',
+            description: 'Failed to establish WebSocket connection within timeout period',
+            variant: 'destructive',
+          });
+          setIsSessionStarted(false);
+          setConnectionStatus('disconnected');
+        }
+        connectionTimeoutRef.current = null;
+      }, 5000);
+      
+      // Setup ping timeout - if no ping received within 30 seconds, close connection
+      const resetPingTimeout = () => {
+        if (pingTimeoutRef.current) {
+          clearTimeout(pingTimeoutRef.current);
+        }
+        pingTimeoutRef.current = setTimeout(() => {
+          if (webSocketRef.current) {
+            webSocketRef.current.close();
+            toast({
+              title: 'Connection Lost',
+              description: 'Lost connection to the voice service',
+              variant: 'destructive',
+            });
+            setIsRecording(false);
+            setIsSessionStarted(false);
+            setConnectionStatus('disconnected');
+          }
+          pingTimeoutRef.current = null;
+        }, 30000);
+      };
+      
+      // Start ping timeout when connection opens
+      resetPingTimeout();
+      
+      // Setup WebSocket event handlers
+      ws.onopen = () => {
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
+        
+        setConnectionStatus('connected');
+        
+        // Add welcome message
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: 'Voice session started. Press the microphone button to start recording.' 
+        }]);
+        
+        // Send a ping to keep the connection alive
+        const keepAlive = () => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "ping" }));
+            setTimeout(keepAlive, 20000); // Send ping every 20 seconds
+          }
+        };
+        keepAlive();
+      };
+      
+      // Handle messages from the server
+      ws.onmessage = (event) => {
+        try {
+          // Reset ping timeout on any message
+          resetPingTimeout();
+          
+          const data = JSON.parse(event.data) as AIWebSocketMessage;
+          
+          // Handle status message (ping/connection confirmation)
+          if (data.type === 'status') {
+            console.log('WebSocket status:', data.content);
+            return;
+          }
+          
+          // Handle transcription message
+          if (data.type === 'transcription') {
+            setMessages(prev => [...prev, { role: 'user', content: `Transcription: ${data.content}` }]);
+            setIsAiSpeaking(false);
+          }
+          
+          // Handle response message
+          if (data.type === 'stream') {
+            const lastMessage = messages[messages.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content.endsWith('...')) {
+              // Append to the existing message
+              setMessages(prev => {
+                const newMessages = [...prev];
+                newMessages[newMessages.length - 1].content = newMessages[newMessages.length - 1].content.replace('...', '') + data.content;
+                return newMessages;
+              });
+            } else {
+              // Create a new message
+              setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+            }
+            setIsAiSpeaking(true);
+          }
+          
+          // Handle TTS audio
+          if (data.type === 'tts') {
+            // Play the audio
+            const audio = new Audio(`data:audio/mp3;base64,${data.content}`);
+            audio.play();
+            setIsAiSpeaking(true);
+            
+            // Once audio finishes playing
+            audio.onended = () => {
+              setIsAiSpeaking(false);
+            };
+          }
+          
+          // Handle error message
+          if (data.type === 'error') {
+            toast({
+              title: 'Error',
+              description: data.content,
+              variant: 'destructive',
+            });
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      };
+      
+      // Handle WebSocket errors
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        toast({
+          title: 'Connection Error',
+          description: 'Failed to connect to voice service',
+          variant: 'destructive',
+        });
+        setIsRecording(false);
+        setIsSessionStarted(false);
+        setConnectionStatus('disconnected');
+        
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
+        if (pingTimeoutRef.current) {
+          clearTimeout(pingTimeoutRef.current);
+          pingTimeoutRef.current = null;
+        }
+      };
+      
+      // Handle WebSocket close
+      ws.onclose = (event) => {
+        console.log('WebSocket closed:', event.code, event.reason);
+        setConnectionStatus('disconnected');
+        setIsSessionStarted(false);
+        
+        if (isRecording) {
+          toast({
+            title: 'Connection Closed',
+            description: 'Voice connection was closed',
+            variant: 'default',
+          });
+          setIsRecording(false);
+        }
+        
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
+        if (pingTimeoutRef.current) {
+          clearTimeout(pingTimeoutRef.current);
+          pingTimeoutRef.current = null;
+        }
+      };
+    } catch (error) {
+      console.error('Error setting up voice session:', error);
+      toast({
+        title: 'Connection Error',
+        description: 'Failed to set up voice session',
+        variant: 'destructive',
+      });
+      setIsSessionStarted(false);
+      setConnectionStatus('disconnected');
+    }
+  };
+  
+  // End the voice session
+  const endVoiceSession = () => {
+    if (webSocketRef.current) {
+      webSocketRef.current.close();
+    }
+    if (isRecording) {
+      toggleRecording();
+    }
+    setIsSessionStarted(false);
+    setConnectionStatus('disconnected');
+    toast({
+      title: 'Session Ended',
+      description: 'Voice session has ended',
+      variant: 'default',
+    });
+  };
   
   // Handle sending text messages
   const handleSendMessage = async () => {
@@ -112,221 +331,70 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
   
   // Handle starting/stopping voice recording
   const toggleRecording = async () => {
+    // If WebSocket is not connected, don't allow recording
+    if (!isSessionStarted || webSocketRef.current?.readyState !== WebSocket.OPEN) {
+      toast({
+        title: 'Not Connected',
+        description: 'Please start a voice session first',
+        variant: 'default',
+      });
+      return;
+    }
+    
     if (isRecording) {
       // Stop recording
       if (mediaRecorderRef.current) {
         mediaRecorderRef.current.stop();
       }
-      if (webSocketRef.current) {
-        webSocketRef.current.close();
-      }
       setIsRecording(false);
-      setConnectionStatus('disconnected');
       
-      // Clear any pending timeouts
-      if (connectionTimeoutRef.current) {
-        clearTimeout(connectionTimeoutRef.current);
-        connectionTimeoutRef.current = null;
-      }
-      if (pingTimeoutRef.current) {
-        clearTimeout(pingTimeoutRef.current);
-        pingTimeoutRef.current = null;
-      }
+      // Update the last user message to show recording stopped
+      setMessages(prev => {
+        const newMessages = [...prev];
+        // Find the last recording message
+        let lastRecordingIndex = -1;
+        for (let i = newMessages.length - 1; i >= 0; i--) {
+          if (newMessages[i].role === 'user' && newMessages[i].content === '🎤 Recording...') {
+            lastRecordingIndex = i;
+            break;
+          }
+        }
+        
+        if (lastRecordingIndex !== -1) {
+          newMessages[lastRecordingIndex].content = '🎤 Voice message sent';
+        }
+        return newMessages;
+      });
     } else {
       try {
-        // Set connecting status
-        setConnectionStatus('connecting');
-        
         // Request microphone access
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        // Setup WebSocket connection through Nginx proxy
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//${window.location.host}/ws/audio-stream`;
-        const ws = new WebSocket(wsUrl);
-        webSocketRef.current = ws;
+        // Create MediaRecorder
+        const mediaRecorder = new MediaRecorder(stream, {
+          mimeType: 'audio/webm' // Use a widely supported format
+        });
+        mediaRecorderRef.current = mediaRecorder;
         
-        // Add connection timeout - 5 seconds to establish connection
-        connectionTimeoutRef.current = setTimeout(() => {
-          if (ws.readyState !== WebSocket.OPEN) {
-            ws.close();
-            toast({
-              title: 'Connection Timeout',
-              description: 'Failed to establish WebSocket connection within timeout period',
-              variant: 'destructive',
-            });
-            setIsRecording(false);
-            setConnectionStatus('disconnected');
-          }
-          connectionTimeoutRef.current = null;
-        }, 5000);
+        // Add user message to indicate recording started
+        setMessages(prev => [...prev, { role: 'user', content: '🎤 Recording...' }]);
         
-        // Setup ping timeout - if no ping received within 30 seconds, close connection
-        const resetPingTimeout = () => {
-          if (pingTimeoutRef.current) {
-            clearTimeout(pingTimeoutRef.current);
-          }
-          pingTimeoutRef.current = setTimeout(() => {
-            if (webSocketRef.current) {
-              webSocketRef.current.close();
-              toast({
-                title: 'Connection Lost',
-                description: 'Lost connection to the voice service',
-                variant: 'destructive',
-              });
-              setIsRecording(false);
-              setConnectionStatus('disconnected');
-            }
-            pingTimeoutRef.current = null;
-          }, 30000);
-        };
-        
-        // Start ping timeout when connection opens
-        resetPingTimeout();
-        
-        // Setup WebSocket event handlers
-        ws.onopen = () => {
-          if (connectionTimeoutRef.current) {
-            clearTimeout(connectionTimeoutRef.current);
-            connectionTimeoutRef.current = null;
-          }
-          
-          setConnectionStatus('connected');
-          
-          // Create MediaRecorder once WebSocket is open
-          const mediaRecorder = new MediaRecorder(stream, {
-            mimeType: 'audio/webm' // Use a widely supported format
-          });
-          mediaRecorderRef.current = mediaRecorder;
-          
-          // Add user message to indicate recording started
-          setMessages(prev => [...prev, { role: 'user', content: '🎤 Recording...' }]);
-          
-          // Send audio data when available
-          mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-              ws.send(event.data);
-            }
-          };
-          
-          // Handle MediaRecorder stop
-          mediaRecorder.onstop = () => {
-            // Update the last user message to show recording stopped
-            setMessages(prev => {
-              const newMessages = [...prev];
-              // Find the last recording message
-              let lastRecordingIndex = -1;
-              for (let i = newMessages.length - 1; i >= 0; i--) {
-                if (newMessages[i].role === 'user' && newMessages[i].content === '🎤 Recording...') {
-                  lastRecordingIndex = i;
-                  break;
-                }
-              }
-              
-              if (lastRecordingIndex !== -1) {
-                newMessages[lastRecordingIndex].content = '🎤 Voice message sent';
-              }
-              return newMessages;
-            });
-            
-            // Stop all audio tracks
-            stream.getTracks().forEach(track => track.stop());
-          };
-          
-          // Start recording with shorter chunks for more responsive interaction
-          mediaRecorder.start(500); // Collect 500ms chunks
-          setIsRecording(true);
-        };
-        
-        // Handle messages from the server
-        ws.onmessage = (event) => {
-          try {
-            // Reset ping timeout on any message
-            resetPingTimeout();
-            
-            const data = JSON.parse(event.data) as AIWebSocketMessage;
-            
-            // Handle status message (ping/connection confirmation)
-            if (data.type === 'status') {
-              console.log('WebSocket status:', data.content);
-              return;
-            }
-            
-            // Handle transcription message
-            if (data.type === 'transcription') {
-              setMessages(prev => [...prev, { role: 'user', content: `Transcription: ${data.content}` }]);
-              setIsAiSpeaking(false);
-            }
-            
-            // Handle response message
-            if (data.type === 'response') {
-              setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
-              setIsAiSpeaking(true);
-              
-              // Add a delay and then turn off the visualizer
-              setTimeout(() => {
-                setIsAiSpeaking(false);
-              }, 5000);
-            }
-            
-            // Handle error message
-            if (data.type === 'error') {
-              toast({
-                title: 'Error',
-                description: data.content,
-                variant: 'destructive',
-              });
-            }
-          } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
+        // Send audio data when available
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0 && webSocketRef.current?.readyState === WebSocket.OPEN) {
+            webSocketRef.current.send(event.data);
           }
         };
         
-        // Handle WebSocket errors
-        ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          toast({
-            title: 'Connection Error',
-            description: 'Failed to connect to voice service',
-            variant: 'destructive',
-          });
-          setIsRecording(false);
-          setConnectionStatus('disconnected');
-          
-          if (connectionTimeoutRef.current) {
-            clearTimeout(connectionTimeoutRef.current);
-            connectionTimeoutRef.current = null;
-          }
-          if (pingTimeoutRef.current) {
-            clearTimeout(pingTimeoutRef.current);
-            pingTimeoutRef.current = null;
-          }
+        // Handle MediaRecorder stop
+        mediaRecorder.onstop = () => {
+          // Stop all audio tracks
+          stream.getTracks().forEach(track => track.stop());
         };
         
-        // Handle WebSocket close
-        ws.onclose = (event) => {
-          console.log('WebSocket closed:', event.code, event.reason);
-          setConnectionStatus('disconnected');
-          
-          if (isRecording) {
-            toast({
-              title: 'Connection Closed',
-              description: 'Voice connection was closed',
-              variant: 'default',
-            });
-            setIsRecording(false);
-          }
-          
-          if (connectionTimeoutRef.current) {
-            clearTimeout(connectionTimeoutRef.current);
-            connectionTimeoutRef.current = null;
-          }
-          if (pingTimeoutRef.current) {
-            clearTimeout(pingTimeoutRef.current);
-            pingTimeoutRef.current = null;
-          }
-        };
-        
+        // Start recording with shorter chunks for more responsive interaction
+        mediaRecorder.start(500); // Collect 500ms chunks
+        setIsRecording(true);
       } catch (error) {
         console.error('Error accessing microphone:', error);
         toast({
@@ -334,8 +402,6 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
           description: 'Failed to access microphone. Please check permissions.',
           variant: 'destructive',
         });
-        setIsRecording(false);
-        setConnectionStatus('disconnected');
       }
     }
   };
@@ -557,14 +623,36 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
                   </span>
                 </div>
                 
+                {/* Session control buttons */}
+                {!isSessionStarted ? (
+                  <Button
+                    onClick={startVoiceSession}
+                    variant="default"
+                    className="bg-teleport-blue hover:bg-teleport-darkblue mb-2"
+                    disabled={isSessionStarted || connectionStatus === 'connecting'}
+                  >
+                    Start Voice Session
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={endVoiceSession}
+                    variant="outline"
+                    className="mb-2"
+                    disabled={connectionStatus === 'disconnected'}
+                  >
+                    End Voice Session
+                  </Button>
+                )}
+                
                 {/* Audio visualizer */}
                 <div className="w-full flex justify-center mb-2">
                   <AudioVisualizer 
-                    isActive={isAiSpeaking} 
-                    color="#3b82f6"
+                    isActive={isAiSpeaking || isRecording} 
+                    color={isRecording ? "#ef4444" : "#3b82f6"}
                   />
                 </div>
                 
+                {/* Recording button - only enabled when session is started */}
                 <Button
                   onClick={toggleRecording}
                   variant={isRecording ? "destructive" : "default"}
@@ -573,7 +661,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
                       ? 'bg-red-500 hover:bg-red-600' 
                       : 'bg-teleport-blue hover:bg-teleport-darkblue'
                   }`}
-                  disabled={isLoading || connectionStatus === 'connecting'}
+                  disabled={!isSessionStarted || connectionStatus !== 'connected'}
                 >
                   {isRecording ? (
                     <MicOff className="h-6 w-6" />

@@ -9,6 +9,6 @@ export interface AIAudioResponse {
 }
 
 export interface AIWebSocketMessage {
-  type: 'response' | 'error' | 'status' | 'transcription';
+  type: 'response' | 'error' | 'status' | 'transcription' | 'stream' | 'tts';
   content: string;
 }

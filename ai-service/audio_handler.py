@@ -1,3 +1,4 @@
+
 import asyncio
 import json
 import logging
@@ -30,52 +31,61 @@ async def handle_audio_stream(websocket: WebSocket, app_data):
 
         try:
             while True:
-                audio_chunk = await websocket.receive_bytes()
-                chunks.append(audio_chunk)
+                message = await websocket.receive()
+                
+                # Handle ping messages
+                if "text" in message and message["text"] == "ping":
+                    await websocket.send_json({"type": "status", "content": "pong"})
+                    continue
+                
+                # Handle audio data    
+                if "bytes" in message:
+                    audio_chunk = message["bytes"]
+                    chunks.append(audio_chunk)
 
-                if len(chunks) > 5:
-                    # Write collected chunks to disk
-                    temp_file.seek(0)
-                    temp_file.truncate(0)
-                    for chunk in chunks:
-                        temp_file.write(chunk)
-                    temp_file.flush()
+                    if len(chunks) > 5:
+                        # Write collected chunks to disk
+                        temp_file.seek(0)
+                        temp_file.truncate(0)
+                        for chunk in chunks:
+                            temp_file.write(chunk)
+                        temp_file.flush()
 
-                    # Read and b64-encode for Gemini
-                    temp_file.seek(0)
-                    audio_data = temp_file.read()
-                    audio_b64 = base64.b64encode(audio_data).decode("utf-8")
+                        # Read and b64-encode for Gemini
+                        temp_file.seek(0)
+                        audio_data = temp_file.read()
+                        audio_b64 = base64.b64encode(audio_data).decode("utf-8")
 
-                    # 1️⃣ Transcription (batch)
-                    contents = [
-                        {"text": app_context},
-                        {"inline_data": {"mime_type": "audio/webm", "data": audio_b64}},
-                    ]
-                    try:
-                        logger.info("Generating transcription with Gemini")
-                        resp = model.generate_content(contents=contents)
-                        transcribed_text = resp.text
-                        await websocket.send_json({"type": "transcription", "content": transcribed_text})
-
-                        # 2️⃣ Streamed chat response
-                        chat_contents = [
+                        # 1️⃣ Transcription (batch)
+                        contents = [
                             {"text": app_context},
-                            {"text": f"User question (from voice): {transcribed_text}"},
+                            {"inline_data": {"mime_type": "audio/webm", "data": audio_b64}},
                         ]
-                        logger.info("Streaming chat response")
-                        await stream_response(chat_contents, websocket)
+                        try:
+                            logger.info("Generating transcription with Gemini")
+                            resp = model.generate_content(contents=contents)
+                            transcribed_text = resp.text
+                            await websocket.send_json({"type": "transcription", "content": transcribed_text})
 
-                        # 3️⃣ Final full response for TTS
-                        final_resp = model.generate_content(contents=chat_contents).text
-                        tts_bytes = await synthesize_speech(final_resp)
-                        tts_b64 = base64.b64encode(tts_bytes).decode("utf-8")
-                        await websocket.send_json({"type": "tts", "content": tts_b64})
+                            # 2️⃣ Streamed chat response
+                            chat_contents = [
+                                {"text": app_context},
+                                {"text": f"User question (from voice): {transcribed_text}"},
+                            ]
+                            logger.info("Streaming chat response")
+                            await stream_response(chat_contents, websocket)
 
-                    except Exception as e:
-                        logger.error(f"Error processing audio: {e}")
-                        await websocket.send_json({"type": "error", "content": str(e)})
-                    finally:
-                        chunks = []
+                            # 3️⃣ Final full response for TTS
+                            final_resp = model.generate_content(contents=chat_contents).text
+                            tts_bytes = await synthesize_speech(final_resp)
+                            tts_b64 = base64.b64encode(tts_bytes).decode("utf-8")
+                            await websocket.send_json({"type": "tts", "content": tts_b64})
+
+                        except Exception as e:
+                            logger.error(f"Error processing audio: {e}")
+                            await websocket.send_json({"type": "error", "content": str(e)})
+                        finally:
+                            chunks = []
 
         except asyncio.CancelledError:
             logger.info("WebSocket connection cancelled")
