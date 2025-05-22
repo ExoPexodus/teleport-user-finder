@@ -1,131 +1,103 @@
-
 import asyncio
 import json
 import logging
 from fastapi import WebSocket
 import base64
-import io
 import tempfile
+
 from config import logger
-from gemini_service import get_gemini_model, create_context_prompt
+from gemini_service import (
+    get_gemini_model,
+    create_context_prompt,
+    stream_response,
+    synthesize_speech,
+)
 
 async def handle_audio_stream(websocket: WebSocket, app_data):
     """Handle streaming audio for real-time voice processing"""
-    try:
-        # Accept the WebSocket connection
-        await websocket.accept()
-        logger.info("WebSocket connection accepted")
-        
-        # Send a connection confirmation message
-        await websocket.send_json({
-            "type": "status",
-            "content": "Connected to audio service"
-        })
-        
-        # Set up the Gemini model
-        model = get_gemini_model()
-        app_context = create_context_prompt(app_data)
-        
-        # Create a temporary file for audio
-        with tempfile.NamedTemporaryFile(suffix='.webm') as temp_file:
-            # We'll collect audio chunks here
-            chunks = []
-            
-            # Send a ping every 10 seconds to keep the connection alive
-            ping_task = asyncio.create_task(send_periodic_ping(websocket))
-            
-            try:
-                # While we're receiving data
-                while True:
-                    # Receive binary data
-                    audio_chunk = await websocket.receive_bytes()
-                    chunks.append(audio_chunk)
-                    
-                    # If we've received a complete message (end of speech or enough data)
-                    # Process what we have so far
-                    if len(chunks) > 5:  # Process after a few chunks to simulate real-time
-                        # Save chunks to the temporary file
-                        temp_file.seek(0)
-                        for chunk in chunks:
-                            temp_file.write(chunk)
-                        temp_file.flush()
-                        
-                        # Convert audio to base64 for Gemini
-                        temp_file.seek(0)
-                        audio_data = temp_file.read()
-                        audio_b64 = base64.b64encode(audio_data).decode("utf-8")
-                        
-                        # Create content parts for multimodal input
-                        contents = [
+    await websocket.accept()
+    logger.info("WebSocket connection accepted")
+
+    # Initial status
+    await websocket.send_json({"type": "status", "content": "Connected to audio service"})
+
+    model = get_gemini_model()
+    app_context = create_context_prompt(app_data)
+
+    with tempfile.NamedTemporaryFile(suffix=".webm") as temp_file:
+        chunks = []
+        ping_task = asyncio.create_task(send_periodic_ping(websocket))
+
+        try:
+            while True:
+                audio_chunk = await websocket.receive_bytes()
+                chunks.append(audio_chunk)
+
+                if len(chunks) > 5:
+                    # Write collected chunks to disk
+                    temp_file.seek(0)
+                    temp_file.truncate(0)
+                    for chunk in chunks:
+                        temp_file.write(chunk)
+                    temp_file.flush()
+
+                    # Read and b64-encode for Gemini
+                    temp_file.seek(0)
+                    audio_data = temp_file.read()
+                    audio_b64 = base64.b64encode(audio_data).decode("utf-8")
+
+                    # 1️⃣ Transcription (batch)
+                    contents = [
+                        {"text": app_context},
+                        {"inline_data": {"mime_type": "audio/webm", "data": audio_b64}},
+                    ]
+                    try:
+                        logger.info("Generating transcription with Gemini")
+                        resp = model.generate_content(contents=contents)
+                        transcribed_text = resp.text
+                        await websocket.send_json({"type": "transcription", "content": transcribed_text})
+
+                        # 2️⃣ Streamed chat response
+                        chat_contents = [
                             {"text": app_context},
-                            {"inline_data": {"mime_type": "audio/webm", "data": audio_b64}}
+                            {"text": f"User question (from voice): {transcribed_text}"},
                         ]
-                        
-                        try:
-                            # Generate response for audio transcription
-                            logger.info("Generating transcription with Gemini")
-                            response = model.generate_content(contents)
-                            transcribed_text = response.text
-                            
-                            # Send the transcription back to the client
-                            await websocket.send_json({
-                                "type": "transcription",
-                                "content": transcribed_text
-                            })
-                            
-                            # Generate response to the transcribed text
-                            logger.info(f"Generating response to transcription: {transcribed_text[:30]}...")
-                            chat_response = model.generate_content([
-                                {"text": app_context},
-                                {"text": f"User question (from voice): {transcribed_text}"}
-                            ])
-                            
-                            # Send the response back to the client
-                            await websocket.send_json({
-                                "type": "response",
-                                "content": chat_response.text
-                            })
-                            
-                            # Clear chunks to start a new collection
-                            chunks = []
-                            
-                        except Exception as e:
-                            logger.error(f"Error processing audio: {e}")
-                            await websocket.send_json({
-                                "type": "error",
-                                "content": f"Error processing audio: {str(e)}"
-                            })
-                            chunks = []  # Reset chunks on error
-                    
-            except asyncio.CancelledError:
-                logger.info("WebSocket connection cancelled")
-                ping_task.cancel()
-                
-            except Exception as e:
-                logger.error(f"Error in WebSocket handler: {e}")
-                ping_task.cancel()
-                try:
-                    await websocket.send_json({
-                        "type": "error",
-                        "content": f"Connection error: {str(e)}"
-                    })
-                except:
-                    pass
-                    
-    except Exception as e:
-        logger.error(f"WebSocket connection failed: {e}")
-        
-    finally:
-        logger.info("WebSocket connection closed")
+                        logger.info("Streaming chat response")
+                        await stream_response(chat_contents, websocket)
+
+                        # 3️⃣ Final full response for TTS
+                        final_resp = model.generate_content(contents=chat_contents).text
+                        tts_bytes = await synthesize_speech(final_resp)
+                        tts_b64 = base64.b64encode(tts_bytes).decode("utf-8")
+                        await websocket.send_json({"type": "tts", "content": tts_b64})
+
+                    except Exception as e:
+                        logger.error(f"Error processing audio: {e}")
+                        await websocket.send_json({"type": "error", "content": str(e)})
+                    finally:
+                        chunks = []
+
+        except asyncio.CancelledError:
+            logger.info("WebSocket connection cancelled")
+            ping_task.cancel()
+
+        except Exception as e:
+            logger.error(f"Error in WebSocket handler: {e}")
+            ping_task.cancel()
+            try:
+                await websocket.send_json({"type": "error", "content": str(e)})
+            except:
+                pass
+
+        finally:
+            logger.info("WebSocket connection closed")
+
 
 async def send_periodic_ping(websocket: WebSocket):
     """Send periodic pings to keep the WebSocket connection alive"""
     try:
         while True:
             await asyncio.sleep(10)
-            await websocket.send_json({
-                "type": "status",
-                "content": "ping"
-            })
+            await websocket.send_json({"type": "status", "content": "ping"})
     except Exception as e:
         logger.error(f"Error sending ping: {e}")

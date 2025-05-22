@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Environment variables
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or raise EnvironmentError("GEMINI_API_KEY not set")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:5000")
 
 # System instruction for the AI assistant
@@ -29,7 +29,7 @@ Respond concisely and accurately.
 """
 
 # Gemini model configuration
-MODEL_NAME = "gemini-1.5-flash"
+MODEL_NAME = "gemini-2.0-flash-live-001"
 TEXT_GENERATION_CONFIG = {
     "temperature": 0.7,
     "top_p": 0.95,

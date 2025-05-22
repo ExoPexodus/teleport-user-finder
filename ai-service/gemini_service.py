@@ -4,6 +4,7 @@ import json
 import base64
 import logging
 from config import GEMINI_API_KEY, MODEL_NAME, SYSTEM_INSTRUCTION, TEXT_GENERATION_CONFIG
+from google.cloud import texttospeech
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,15 @@ def get_gemini_model():
         generation_config=TEXT_GENERATION_CONFIG
     )
 
+async def stream_response(contents, websocket):
+    """Low-latency streaming to WS"""
+    model = get_gemini_model()
+    stream = model.generate_content(contents=contents, stream=True)
+    async for chunk in stream:
+        if chunk.text:
+            await websocket.send_json({"type": "stream", "content": chunk.text})
+
+
 async def process_text_request(message, app_data):
     """Process a text request and return the AI response"""
     try:
@@ -54,6 +64,16 @@ async def process_text_request(message, app_data):
     except Exception as e:
         logger.error(f"Error processing text request: {e}")
         return {"error": str(e), "response": "Sorry, there was an error processing your request."}
+
+async def synthesize_speech(text: str) -> bytes:
+    client = texttospeech.TextToSpeechClient()
+    synthesis_input = texttospeech.SynthesisInput(text=text)
+    voice = texttospeech.VoiceSelectionParams(
+        language_code="en-US", ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
+    )
+    audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
+    resp = client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
+    return resp.audio_content
 
 async def process_audio_request(audio_data, app_data):
     """Process an audio request and return the AI response"""

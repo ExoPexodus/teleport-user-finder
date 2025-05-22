@@ -9,3 +9,5 @@ pyaudio==0.2.14
 soundfile==0.12.1
 requests==2.31.0
 pydub==0.25.1
+httpx
+google-cloud-texttospeech
