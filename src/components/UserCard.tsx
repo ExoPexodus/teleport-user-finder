@@ -5,6 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { UserCheck, Clock, Shield, UserCog, Globe } from 'lucide-react';
+import { UserCardBadge } from './UserCardBadge';
 
 interface UserCardProps {
   user: User;
@@ -12,24 +13,6 @@ interface UserCardProps {
 }
 
 export const UserCard = ({ user, onClick }: UserCardProps) => {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'inactive': return 'bg-red-500/20 text-red-400 border-red-500/30';
-      case 'pending': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-    }
-  };
-
-  const getPortalColor = (portal: string | null) => {
-    switch (portal) {
-      case 'kocharsoft': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      case 'igzy': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-      case 'maxicus': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-    }
-  };
-
   return (
     <Card 
       className="overflow-hidden transition-all duration-200 cursor-pointer border-2 border-transparent 
@@ -40,9 +23,7 @@ export const UserCard = ({ user, onClick }: UserCardProps) => {
       <CardHeader className="bg-teleport-gray pb-2">
         <div className="flex justify-between items-center">
           <CardTitle className="text-lg font-medium text-white">{user.name}</CardTitle>
-          <Badge className={`${getStatusColor(user.status)}`}>
-            {user.status}
-          </Badge>
+          <UserCardBadge type="status" value={user.status} />
         </div>
       </CardHeader>
       <CardContent className="pt-4">
@@ -62,9 +43,7 @@ export const UserCard = ({ user, onClick }: UserCardProps) => {
           <div className="flex items-center gap-2 text-sm">
             <Globe className="h-4 w-4 text-teleport-blue" />
             <span className="font-semibold">Portal:</span>
-            <Badge variant="outline" className={`text-xs ${getPortalColor(user.portal)}`}>
-              {user.portal || 'None'}
-            </Badge>
+            <UserCardBadge type="portal" value={user.portal} />
           </div>
           
           <div className="flex items-center gap-2 text-sm">

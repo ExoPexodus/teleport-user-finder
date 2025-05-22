@@ -1,21 +1,14 @@
 
 import React, { useState } from 'react';
 import { User } from '@/types/user';
-import { format } from 'date-fns';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Download, Trash2, UserCog } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { UpdateManagerDialog } from '@/components/UpdateManagerDialog';
+import { UserActions } from './UserActions';
+import { UserTableHeader } from './UserTableHeader';
+import { UserTableRow } from './UserTableRow';
 
 interface UserListTableProps {
   users: User[];
@@ -34,7 +27,6 @@ export const UserListTable = ({
 }: UserListTableProps) => {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [managerDialogOpen, setManagerDialogOpen] = useState(false);
-  const { toast } = useToast();
 
   // Extract all managers from users
   const allManagers = users
@@ -58,39 +50,15 @@ export const UserListTable = ({
   };
 
   const handleExportClick = () => {
-    if (selectedUserIds.length === 0) {
-      toast({
-        title: "No users selected",
-        description: "Please select at least one user to export.",
-        variant: "destructive"
-      });
-      return;
-    }
     const selectedUsers = users.filter(user => selectedUserIds.includes(user.id));
     onExportSelected(selectedUsers);
   };
 
   const handleDeleteClick = () => {
-    if (selectedUserIds.length === 0) {
-      toast({
-        title: "No users selected",
-        description: "Please select at least one user to delete.",
-        variant: "destructive"
-      });
-      return;
-    }
     onDeleteSelected(selectedUserIds);
   };
 
   const handleManagerUpdateClick = () => {
-    if (selectedUserIds.length === 0) {
-      toast({
-        title: "No users selected",
-        description: "Please select at least one user to update manager.",
-        variant: "destructive"
-      });
-      return;
-    }
     setManagerDialogOpen(true);
   };
 
@@ -99,11 +67,6 @@ export const UserListTable = ({
       // Apply the manager update to all selected users
       selectedUserIds.forEach(id => {
         onManagerUpdate(id, manager);
-      });
-      
-      toast({
-        title: "Managers updated",
-        description: `Manager has been successfully updated for ${selectedUserIds.length} user(s).`
       });
     }
   };
@@ -134,102 +97,32 @@ export const UserListTable = ({
   return (
     <div className="space-y-4">
       {selectedUserIds.length > 0 && (
-        <div className="flex gap-2 items-center bg-teleport-gray p-3 rounded-md border border-teleport-blue">
-          <span className="text-white mr-2">
-            {selectedUserIds.length} user{selectedUserIds.length !== 1 ? 's' : ''} selected
-          </span>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="text-white border-teleport-blue hover:bg-teleport-blue/20"
-            onClick={handleExportClick}
-          >
-            <Download className="mr-1 h-4 w-4" />
-            Export
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline"
-            className="text-white border-teleport-blue hover:bg-teleport-blue/20"
-            onClick={handleManagerUpdateClick}
-          >
-            <UserCog className="mr-1 h-4 w-4" />
-            Update Manager
-          </Button>
-          <Button 
-            size="sm" 
-            variant="destructive"
-            onClick={handleDeleteClick}
-          >
-            <Trash2 className="mr-1 h-4 w-4" />
-            Delete
-          </Button>
-        </div>
+        <UserActions 
+          selectedCount={selectedUserIds.length}
+          onExportClick={handleExportClick}
+          onManagerUpdateClick={handleManagerUpdateClick}
+          onDeleteClick={handleDeleteClick}
+        />
       )}
       
       <div className="rounded-md border border-slate-800 overflow-hidden">
         <Table className="bg-teleport-gray">
-          <TableHeader className="bg-teleport-darkgray">
-            <TableRow className="hover:bg-slate-800/50 border-slate-700">
-              <TableCell className="w-12">
-                <Checkbox 
-                  checked={selectedUserIds.length === users.length && users.length > 0}
-                  onCheckedChange={handleSelectAll}
-                  className="border-slate-600"
-                />
-              </TableCell>
-              <TableHead className="text-white">Name</TableHead>
-              <TableHead className="text-white">Roles</TableHead>
-              <TableHead className="text-white">Status</TableHead>
-              <TableHead className="text-white">Portal</TableHead>
-              <TableHead className="text-white">Manager</TableHead>
-              <TableHead className="text-white">Created Date</TableHead>
-            </TableRow>
-          </TableHeader>
+          <UserTableHeader 
+            onSelectAll={handleSelectAll} 
+            allSelected={selectedUserIds.length === users.length} 
+            userCount={users.length}
+          />
           <TableBody>
             {users.map(user => (
-              <TableRow 
-                key={user.id} 
-                className="hover:bg-teleport-darkgray/50 border-slate-700 cursor-pointer text-white"
-                onClick={() => onUserClick(user)}
-              >
-                <TableCell 
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-12"
-                >
-                  <Checkbox 
-                    checked={selectedUserIds.includes(user.id)}
-                    onCheckedChange={(checked) => handleSelectUser(user.id, Boolean(checked))}
-                    className="border-slate-600"
-                  />
-                </TableCell>
-                <TableCell>{user.name}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {user.roles.map(role => (
-                      <Badge key={role} variant="outline" className="text-xs bg-indigo-900/50 text-indigo-300 border-indigo-700">
-                        {role}
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge className={`${getStatusColor(user.status)}`}>
-                    {user.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {user.portal ? (
-                    <Badge variant="outline" className={`text-xs ${getPortalColor(user.portal)}`}>
-                      {user.portal}
-                    </Badge>
-                  ) : (
-                    <span className="text-gray-400">None</span>
-                  )}
-                </TableCell>
-                <TableCell>{user.manager || <span className="text-gray-400">None</span>}</TableCell>
-                <TableCell>{format(new Date(user.createdDate), 'MMM d, yyyy')}</TableCell>
-              </TableRow>
+              <UserTableRow
+                key={user.id}
+                user={user}
+                isSelected={selectedUserIds.includes(user.id)}
+                onSelectUser={handleSelectUser}
+                onClick={onUserClick}
+                getStatusColor={getStatusColor}
+                getPortalColor={getPortalColor}
+              />
             ))}
           </TableBody>
         </Table>

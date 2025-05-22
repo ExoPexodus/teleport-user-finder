@@ -1,7 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { UserList } from '@/components/UserList';
 import { Header } from '@/components/Header';
-import { SearchBar } from '@/components/SearchBar';
 import { Sidebar } from '@/components/Sidebar';
 import { useQuery } from '@tanstack/react-query';
 import { fetchUsers, updateUser, deleteUsers } from '@/lib/api';
@@ -9,8 +9,8 @@ import { Loader } from '@/components/Loader';
 import { ErrorDisplay } from '@/components/ErrorDisplay';
 import { User } from '@/types/user';
 import { useToast } from '@/hooks/use-toast';
-import { UserFilter } from '@/components/UserFilter';
-import { ViewModeToggle, ViewMode } from '@/components/ViewModeToggle';
+import { ViewMode } from '@/components/ViewModeToggle';
+import { UserSearch } from '@/components/UserSearch';
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -192,30 +192,27 @@ const Index = () => {
       <div className={`transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
         <Header />
         <main className="container px-4 py-8">
-          <div className="mb-8 bg-teleport-gray rounded-lg p-6 shadow-lg border border-slate-800">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-              <h1 className="text-2xl font-bold text-white">User Search</h1>
-              <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
-            </div>
-            
-            <div className="space-y-4">
-              <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-              
-              {!isLoading && !error && allUsers && (
-                <UserFilter 
-                  users={allUsers} 
-                  onFilterChange={handleFilterChange}
-                  selectedPortal={selectedPortal}
-                  selectedManager={selectedManager}
-                  excludedRoles={excludedRoles}
-                  includedRoles={includedRoles}
-                  onRoleExclusionChange={handleRoleExclusionChange}
-                  onRoleInclusionChange={handleRoleInclusionChange}
-                  onSelectAllRoles={handleSelectAllRoles}
-                />
-              )}
-            </div>
-          </div>
+          <UserSearch
+            allUsers={allUsers}
+            isLoading={isLoading}
+            error={error as Error | null}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            selectedPortal={selectedPortal}
+            setSelectedPortal={setSelectedPortal}
+            selectedManager={selectedManager}
+            setSelectedManager={setSelectedManager}
+            excludedRoles={excludedRoles}
+            setExcludedRoles={setExcludedRoles}
+            includedRoles={includedRoles}
+            setIncludedRoles={setIncludedRoles}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            onFilterChange={handleFilterChange}
+            onRoleExclusionChange={handleRoleExclusionChange}
+            onRoleInclusionChange={handleRoleInclusionChange}
+            onSelectAllRoles={handleSelectAllRoles}
+          />
           
           {isLoading ? (
             <Loader />
