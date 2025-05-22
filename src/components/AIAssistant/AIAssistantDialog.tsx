@@ -19,6 +19,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Mic, MicOff, MessageCircle, Send, Paperclip } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { sendChatMessage, sendAudioMessage } from "@/lib/api";
+import { AIWebSocketMessage } from "@/types/ai";
+import { AudioVisualizer } from "./AudioVisualizer";
 
 interface AIAssistantDialogProps {
   open: boolean;
@@ -36,6 +39,8 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
   const [inputValue, setInputValue] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('disconnected');
+  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -45,6 +50,10 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
   
   // MediaRecorder reference for voice recording
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  
+  // Timeout references
+  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Auto-scroll to bottom of messages
   useEffect(() => {
@@ -62,6 +71,12 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
       if (mediaRecorderRef.current && isRecording) {
         mediaRecorderRef.current.stop();
       }
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+      }
+      if (pingTimeoutRef.current) {
+        clearTimeout(pingTimeoutRef.current);
+      }
     };
   }, [isRecording]);
   
@@ -77,20 +92,8 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
       setMessages(prev => [...prev, userMessage]);
       setInputValue('');
       
-      // Send message to API
-      const formData = new FormData();
-      formData.append('message', inputValue);
-      
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to get AI response');
-      }
-      
-      const data = await response.json();
+      // Send message to API using the api.ts function
+      const data = await sendChatMessage(inputValue);
       
       // Add AI response to chat
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
@@ -118,20 +121,33 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
         webSocketRef.current.close();
       }
       setIsRecording(false);
+      setConnectionStatus('disconnected');
+      
+      // Clear any pending timeouts
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
+      if (pingTimeoutRef.current) {
+        clearTimeout(pingTimeoutRef.current);
+        pingTimeoutRef.current = null;
+      }
     } else {
       try {
+        // Set connecting status
+        setConnectionStatus('connecting');
+        
         // Request microphone access
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        // Setup WebSocket connection through Nginx proxy instead of direct connection
-        // Use relative URL for WebSocket to connect through Nginx proxy
+        // Setup WebSocket connection through Nginx proxy
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${wsProtocol}//${window.location.host}/ws/audio-stream`;
         const ws = new WebSocket(wsUrl);
         webSocketRef.current = ws;
         
-        // Add connection timeout
-        const connectionTimeout = setTimeout(() => {
+        // Add connection timeout - 5 seconds to establish connection
+        connectionTimeoutRef.current = setTimeout(() => {
           if (ws.readyState !== WebSocket.OPEN) {
             ws.close();
             toast({
@@ -140,12 +156,42 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
               variant: 'destructive',
             });
             setIsRecording(false);
+            setConnectionStatus('disconnected');
           }
+          connectionTimeoutRef.current = null;
         }, 5000);
+        
+        // Setup ping timeout - if no ping received within 30 seconds, close connection
+        const resetPingTimeout = () => {
+          if (pingTimeoutRef.current) {
+            clearTimeout(pingTimeoutRef.current);
+          }
+          pingTimeoutRef.current = setTimeout(() => {
+            if (webSocketRef.current) {
+              webSocketRef.current.close();
+              toast({
+                title: 'Connection Lost',
+                description: 'Lost connection to the voice service',
+                variant: 'destructive',
+              });
+              setIsRecording(false);
+              setConnectionStatus('disconnected');
+            }
+            pingTimeoutRef.current = null;
+          }, 30000);
+        };
+        
+        // Start ping timeout when connection opens
+        resetPingTimeout();
         
         // Setup WebSocket event handlers
         ws.onopen = () => {
-          clearTimeout(connectionTimeout);
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+          }
+          
+          setConnectionStatus('connected');
           
           // Create MediaRecorder once WebSocket is open
           const mediaRecorder = new MediaRecorder(stream, {
@@ -195,7 +241,10 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
         // Handle messages from the server
         ws.onmessage = (event) => {
           try {
-            const data = JSON.parse(event.data);
+            // Reset ping timeout on any message
+            resetPingTimeout();
+            
+            const data = JSON.parse(event.data) as AIWebSocketMessage;
             
             // Handle status message (ping/connection confirmation)
             if (data.type === 'status') {
@@ -206,11 +255,18 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
             // Handle transcription message
             if (data.type === 'transcription') {
               setMessages(prev => [...prev, { role: 'user', content: `Transcription: ${data.content}` }]);
+              setIsAiSpeaking(false);
             }
             
             // Handle response message
             if (data.type === 'response') {
               setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+              setIsAiSpeaking(true);
+              
+              // Add a delay and then turn off the visualizer
+              setTimeout(() => {
+                setIsAiSpeaking(false);
+              }, 5000);
             }
             
             // Handle error message
@@ -228,7 +284,6 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
         
         // Handle WebSocket errors
         ws.onerror = (error) => {
-          clearTimeout(connectionTimeout);
           console.error('WebSocket error:', error);
           toast({
             title: 'Connection Error',
@@ -236,12 +291,23 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
             variant: 'destructive',
           });
           setIsRecording(false);
+          setConnectionStatus('disconnected');
+          
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+          }
+          if (pingTimeoutRef.current) {
+            clearTimeout(pingTimeoutRef.current);
+            pingTimeoutRef.current = null;
+          }
         };
         
         // Handle WebSocket close
         ws.onclose = (event) => {
-          clearTimeout(connectionTimeout);
           console.log('WebSocket closed:', event.code, event.reason);
+          setConnectionStatus('disconnected');
+          
           if (isRecording) {
             toast({
               title: 'Connection Closed',
@@ -249,6 +315,15 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
               variant: 'default',
             });
             setIsRecording(false);
+          }
+          
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = null;
+          }
+          if (pingTimeoutRef.current) {
+            clearTimeout(pingTimeoutRef.current);
+            pingTimeoutRef.current = null;
           }
         };
         
@@ -259,6 +334,8 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
           description: 'Failed to access microphone. Please check permissions.',
           variant: 'destructive',
         });
+        setIsRecording(false);
+        setConnectionStatus('disconnected');
       }
     }
   };
@@ -271,21 +348,8 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
       // Add user message to chat
       setMessages(prev => [...prev, { role: 'user', content: '🎤 Uploaded voice message' }]);
       
-      // Create form data
-      const formData = new FormData();
-      formData.append('audio', file);
-      
-      // Send to API
-      const response = await fetch('/api/ai/audio', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to process audio');
-      }
-      
-      const data = await response.json();
+      // Send to API using the api.ts function
+      const data = await sendAudioMessage(file);
       
       // Add transcription and response to chat
       setMessages(prev => [
@@ -345,6 +409,15 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
         description: 'Please upload an audio file.',
         variant: 'destructive',
       });
+    }
+  };
+
+  // Get connection status indicator color
+  const getConnectionStatusColor = () => {
+    switch (connectionStatus) {
+      case 'connected': return 'bg-green-500';
+      case 'connecting': return 'bg-yellow-500';
+      case 'disconnected': return 'bg-gray-400';
     }
   };
 
@@ -476,6 +549,22 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
               
               {/* Voice Controls */}
               <div className="flex flex-col items-center space-y-4 p-4 border-t">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`w-3 h-3 rounded-full ${getConnectionStatusColor()}`}></div>
+                  <span className="text-sm text-muted-foreground">
+                    {connectionStatus === 'connected' ? 'Connected' : 
+                     connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                  </span>
+                </div>
+                
+                {/* Audio visualizer */}
+                <div className="w-full flex justify-center mb-2">
+                  <AudioVisualizer 
+                    isActive={isAiSpeaking} 
+                    color="#3b82f6"
+                  />
+                </div>
+                
                 <Button
                   onClick={toggleRecording}
                   variant={isRecording ? "destructive" : "default"}
@@ -484,7 +573,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
                       ? 'bg-red-500 hover:bg-red-600' 
                       : 'bg-teleport-blue hover:bg-teleport-darkblue'
                   }`}
-                  disabled={isLoading}
+                  disabled={isLoading || connectionStatus === 'connecting'}
                 >
                   {isRecording ? (
                     <MicOff className="h-6 w-6" />
@@ -496,7 +585,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
                   {isRecording ? "Tap to stop recording" : "Tap to start recording"}
                 </p>
                 <p className="text-xs text-muted-foreground text-center">
-                  Speech is processed in real-time with Gemini 2.0
+                  Speech is processed in real-time with Gemini
                 </p>
               </div>
             </TabsContent>
@@ -505,7 +594,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
         
         <SheetFooter className="border-t px-6 py-4">
           <div className="text-xs text-muted-foreground w-full text-center">
-            AI assistant powered by Gemini 2.0
+            AI assistant powered by Gemini
           </div>
         </SheetFooter>
       </SheetContent>
