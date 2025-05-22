@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify
 import logging
 import json
@@ -116,9 +115,13 @@ def fetch_users_from_ssh():
                         and_(User.name == name, User.portal == client)
                     ).first()
                     
+                    # Determine user status based on roles - if 'inactive_role' is present, mark as inactive
+                    status = 'inactive' if 'inactive_role' in roles else 'active'
+                    
                     if existing_user:
-                        # Update existing user's roles
+                        # Update existing user's roles and status
                         existing_user.roles = ','.join(roles)
+                        existing_user.status = status
                         updated_user_count += 1
                     else:
                         # Create new user
@@ -136,7 +139,7 @@ def fetch_users_from_ssh():
                             roles=','.join(roles),
                             created_date=created_date_obj,
                             last_login=None,
-                            status='active',
+                            status=status,  # Set status based on roles
                             manager=manager,
                             portal=client
                         )

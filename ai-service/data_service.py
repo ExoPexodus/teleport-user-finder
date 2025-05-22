@@ -13,7 +13,18 @@ async def get_application_data():
         # Fetch users
         users_response = requests.get(f"{BACKEND_URL}/api/users")
         if users_response.status_code == 200:
-            data["users"] = users_response.json()
+            users_data = users_response.json()
+            
+            # Count active and inactive users
+            active_users = sum(1 for user in users_data if user.get('status') == 'active')
+            inactive_users = sum(1 for user in users_data if user.get('status') == 'inactive')
+            
+            data["users"] = users_data
+            data["user_stats"] = {
+                "total": len(users_data),
+                "active": active_users,
+                "inactive": inactive_users
+            }
             
         # Fetch scheduled jobs
         jobs_response = requests.get(f"{BACKEND_URL}/teleport/scheduled-jobs")
