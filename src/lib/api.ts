@@ -4,7 +4,16 @@ import { AITextResponse, AIAudioResponse } from '@/types/ai';
 
 // API URL paths need to be adjusted to match nginx config
 const API_URL = '/api';
+
+// Update these URLs to use relative paths that will work in any environment
+// This ensures they'll work in both development and production
 const AI_API_URL = '/api/ai';
+const WS_BASE_URL = window.location.protocol === 'https:' 
+  ? `wss://${window.location.host}/ws` 
+  : `ws://${window.location.host}/ws`;
+
+// Export the WebSocket URL for use in other components
+export const getWebSocketUrl = (endpoint: string) => `${WS_BASE_URL}/${endpoint}`;
 
 export async function fetchUsers(portal?: string): Promise<User[]> {
   const url = portal 
@@ -261,6 +270,10 @@ export async function sendChatMessage(message: string): Promise<AITextResponse> 
       body: formData,
     });
 
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
     const data = await response.json();
     
     if (data.error) {
@@ -290,6 +303,10 @@ export async function sendAudioMessage(audioFile: File): Promise<AIAudioResponse
       body: formData,
     });
 
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
     const data = await response.json();
     
     if (data.error) {

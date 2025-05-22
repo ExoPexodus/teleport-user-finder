@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Sheet, 
@@ -5,6 +6,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetFooter,
+  SheetDescription,
 } from "@/components/ui/sheet";
 import { 
   Tabs, 
@@ -18,9 +20,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Mic, MicOff, MessageCircle, Send, Paperclip } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { sendChatMessage, sendAudioMessage } from "@/lib/api";
+import { sendChatMessage, sendAudioMessage, getWebSocketUrl } from "@/lib/api";
 import { AIWebSocketMessage } from "@/types/ai";
 import { AudioVisualizer } from "./AudioVisualizer";
+
+// Adding accessibility descriptions
+const VOICE_SESSION_DESCRIPTION = "Voice session allows you to speak with the AI assistant using your microphone.";
+const CHAT_SESSION_DESCRIPTION = "Chat with the AI assistant by typing messages.";
 
 interface AIAssistantDialogProps {
   open: boolean;
@@ -90,9 +96,9 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
       // Set connecting status
       setConnectionStatus('connecting');
       
-      // Setup WebSocket connection
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${wsProtocol}//${window.location.host}/ws/audio-stream`;
+      // Setup WebSocket connection using the dynamic function from api.ts
+      const wsUrl = getWebSocketUrl('audio-stream');
+      console.log("Connecting to WebSocket URL:", wsUrl);
       
       const ws = new WebSocket(wsUrl);
       webSocketRef.current = ws;
@@ -168,6 +174,7 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
           resetPingTimeout();
           
           const data = JSON.parse(event.data) as AIWebSocketMessage;
+          console.log("Received WebSocket message:", data);
           
           // Handle status message (ping/connection confirmation)
           if (data.type === 'status') {
@@ -492,6 +499,9 @@ export const AIAssistantDialog = ({ open, onOpenChange }: AIAssistantDialogProps
       <SheetContent className="w-[400px] sm:w-[450px] p-0 flex flex-col h-full overflow-hidden border-l shadow-lg" side="right">
         <SheetHeader className="px-6 py-4 border-b">
           <SheetTitle>AI Assistant</SheetTitle>
+          <SheetDescription>
+            Ask questions about Teleport or use voice mode to speak with the assistant.
+          </SheetDescription>
         </SheetHeader>
         
         <div className="flex-1 flex flex-col">

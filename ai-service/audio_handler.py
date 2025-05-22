@@ -35,6 +35,7 @@ async def handle_audio_stream(websocket: WebSocket, app_data):
                 
                 # Handle ping messages
                 if "text" in message and message["text"] == "ping":
+                    logger.debug("Received ping, sending pong")
                     await websocket.send_json({"type": "status", "content": "pong"})
                     continue
                 
@@ -66,6 +67,7 @@ async def handle_audio_stream(websocket: WebSocket, app_data):
                             resp = model.generate_content(contents=contents)
                             transcribed_text = resp.text
                             await websocket.send_json({"type": "transcription", "content": transcribed_text})
+                            logger.info(f"Transcription generated: {transcribed_text[:30]}...")
 
                             # 2️⃣ Streamed chat response
                             chat_contents = [
@@ -77,7 +79,10 @@ async def handle_audio_stream(websocket: WebSocket, app_data):
 
                             # 3️⃣ Final full response for TTS
                             final_resp = model.generate_content(contents=chat_contents).text
+                            logger.info(f"Generated final response for TTS: {final_resp[:30]}...")
+                            
                             tts_bytes = await synthesize_speech(final_resp)
+                            logger.info("TTS generated, sending to client")
                             tts_b64 = base64.b64encode(tts_bytes).decode("utf-8")
                             await websocket.send_json({"type": "tts", "content": tts_b64})
 
