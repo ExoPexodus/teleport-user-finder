@@ -104,7 +104,6 @@ def fetch_users_from_ssh():
         user_count = 0
         new_user_count = 0
         updated_user_count = 0
-        inactive_users_count = 0
         
         for user_data in users_data:
             if user_data.get('kind') == 'user':
@@ -117,20 +116,9 @@ def fetch_users_from_ssh():
                         and_(User.name == name, User.portal == client)
                     ).first()
                     
-                    # Determine user status based on roles - if 'inactive_role' is present, mark as inactive
-                    status = 'inactive' if 'inactive_role' in roles else 'active'
-                    
-                    # Log the user status determination
-                    logging.info(f"User {name} has roles {roles} and status set to {status}")
-                    
-                    if 'inactive_role' in roles:
-                        inactive_users_count += 1
-                    
                     if existing_user:
-                        # Update existing user's roles and status
+                        # Update existing user's roles
                         existing_user.roles = ','.join(roles)
-                        existing_user.status = status
-                        logging.info(f"Updated user {name} status to {status}")
                         updated_user_count += 1
                     else:
                         # Create new user
@@ -148,12 +136,11 @@ def fetch_users_from_ssh():
                             roles=','.join(roles),
                             created_date=created_date_obj,
                             last_login=None,
-                            status=status,  # Set status based on roles
+                            status='active',
                             manager=manager,
                             portal=client
                         )
                         db_session.add(new_user)
-                        logging.info(f"Added new user {name} with status {status}")
                         new_user_count += 1
                     
                     user_count += 1
@@ -163,7 +150,7 @@ def fetch_users_from_ssh():
         
         return jsonify({
             'success': True,
-            'message': f"Successfully processed {user_count} users from {client} portal. Added {new_user_count} new users and updated {updated_user_count} existing users. Found {inactive_users_count} users with inactive_role."
+            'message': f"Successfully processed {user_count} users from {client} portal. Added {new_user_count} new users and updated {updated_user_count} existing users."
         }), 200
         
     except json.JSONDecodeError:
