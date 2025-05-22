@@ -15,7 +15,31 @@ export async function fetchUsers(portal?: string): Promise<User[]> {
   if (!response.ok) {
     throw new Error('Failed to fetch users');
   }
-  return response.json();
+  
+  // Get the user data
+  const userData = await response.json();
+  
+  // Log the received data for debugging
+  console.log("Fetched users data:", userData);
+  
+  // Ensure each user has the correct status
+  const processedUsers = userData.map((user: any) => {
+    // Make sure user has a status field, default to 'active' if not provided
+    if (!user.status) {
+      console.warn(`User ${user.name} has no status, defaulting to 'active'`);
+      user.status = 'active';
+    }
+    
+    // If user has inactive_role, ensure status is inactive
+    if (user.roles && user.roles.includes('inactive_role')) {
+      console.log(`User ${user.name} has inactive_role, setting status to 'inactive'`);
+      user.status = 'inactive';
+    }
+    
+    return user;
+  });
+  
+  return processedUsers;
 }
 
 export async function updateUser(user: User): Promise<{ success: boolean }> {

@@ -30,6 +30,10 @@ export const UserCard = ({ user, onClick }: UserCardProps) => {
     }
   };
 
+  // Log user status for debugging
+  console.log(`Rendering UserCard for ${user.name} with status: ${user.status}`);
+  console.log(`User roles: ${user.roles.join(', ')}`);
+
   return (
     <Card 
       className="overflow-hidden transition-all duration-200 cursor-pointer border-2 border-transparent 
