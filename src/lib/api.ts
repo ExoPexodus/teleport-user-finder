@@ -4,8 +4,8 @@ import { RoleChangeSchedule } from '@/types/schedule';
 import { AITextResponse, AIAudioResponse } from '@/types/ai';
 
 // API URL paths adjusted for the new base path structure
-const API_URL = '/api';
-const AI_API_URL = '/api/ai';
+const API_URL = '/teleportui/api';
+const AI_API_URL = '/teleportui/api/ai';
 
 export async function fetchUsers(portal?: string): Promise<User[]> {
   const url = portal 
@@ -52,7 +52,7 @@ export async function deleteUsers(userIds: string[]): Promise<{ success: boolean
 }
 
 export async function login(username: string, password: string): Promise<{ token: string }> {
-  const response = await fetch('/teleport/login', {
+  const response = await fetch('/teleportui/teleport/login', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -80,7 +80,7 @@ export async function fetchUsersFromSSH(client: string): Promise<{ success: bool
     throw new Error('Token is missing! Please login first.');
   }
   
-  const response = await fetch('/teleport/fetch-users', {
+  const response = await fetch('/teleportui/teleport/fetch-users', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -105,7 +105,7 @@ export async function scheduleRoleChange(schedule: RoleChangeSchedule): Promise<
     throw new Error('Token is missing! Please login first.');
   }
   
-  const response = await fetch('/teleport/schedule-role-change', {
+  const response = await fetch('/teleportui/teleport/schedule-role-change', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -141,7 +141,7 @@ export async function fetchScheduledJobs(): Promise<RoleChangeSchedule[]> {
     throw new Error('Token is missing! Please login first.');
   }
   
-  const response = await fetch('/teleport/scheduled-jobs', {
+  const response = await fetch('/teleportui/teleport/scheduled-jobs', {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -176,7 +176,7 @@ export async function executeRoleChange(userId: string, userName: string, portal
     throw new Error('Token is missing! Please login first.');
   }
   
-  const response = await fetch('/teleport/execute-role-change-immediate', {
+  const response = await fetch('/teleportui/teleport/execute-role-change-immediate', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -218,7 +218,7 @@ export async function fetchAvailableRoles(portal: string): Promise<string[]> {
     throw new Error('Token is missing! Please login first.');
   }
   
-  const response = await fetch(`/teleport/available-roles?portal=${encodeURIComponent(portal)}`, {
+  const response = await fetch(`/teleportui/teleport/available-roles?portal=${encodeURIComponent(portal)}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
