@@ -1,8 +1,9 @@
+
 import { User } from '@/types/user';
 import { RoleChangeSchedule } from '@/types/schedule';
 import { AITextResponse, AIAudioResponse } from '@/types/ai';
 
-// API URL paths need to be adjusted to match nginx config
+// API URL paths adjusted for the new base path structure
 const API_URL = '/api';
 const AI_API_URL = '/api/ai';
 
