@@ -22,7 +22,7 @@ def run_fixed_command():
     if not client:
         return jsonify({'message': "Client parameter is required"}), 400
     
-    command = 'sudo tctl tokens add --ttl=5m --type=node'
+    command = 'sudo tctl tokens add --ttl=30m --type=node'
     output, error = execute_ssh_command(client, command)
     
     if error:
