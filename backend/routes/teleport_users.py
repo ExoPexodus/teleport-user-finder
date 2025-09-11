@@ -100,7 +100,12 @@ def fetch_users_from_ssh():
         # Get database session
         db_session = get_db_session()
         
-        # Process each user
+        # Get existing users from database for this portal
+        existing_db_users = db_session.query(User).filter(User.portal == client).all()
+        existing_db_user_names = {user.name for user in existing_db_users}
+        
+        # Get users from portal
+        portal_user_names = set()
         user_count = 0
         new_user_count = 0
         updated_user_count = 0
@@ -111,14 +116,16 @@ def fetch_users_from_ssh():
                 roles = user_data.get('spec', {}).get('roles', [])
                 
                 if name:
-                    # Check if this user exists with the same portal
-                    existing_user = db_session.query(User).filter(
-                        and_(User.name == name, User.portal == client)
-                    ).first()
+                    portal_user_names.add(name)
+                    user_id = f"{name.replace('@', '_at_')}_{client}"
+                    
+                    # Check if this user exists by ID
+                    existing_user = db_session.query(User).filter(User.id == user_id).first()
                     
                     if existing_user:
                         # Update existing user's roles
                         existing_user.roles = ','.join(roles)
+                        existing_user.status = 'active'  # Mark as active since they exist in portal
                         updated_user_count += 1
                     else:
                         # Create new user
@@ -131,7 +138,7 @@ def fetch_users_from_ssh():
                         manager = user_data.get('spec', {}).get('created_by', {}).get('user', {}).get('name')
                         
                         new_user = User(
-                            id=f"{name.replace('@', '_at_')}_{client}",
+                            id=user_id,
                             name=name,
                             roles=','.join(roles),
                             created_date=created_date_obj,
@@ -145,13 +152,33 @@ def fetch_users_from_ssh():
                     
                     user_count += 1
         
+        # Identify orphaned users (in DB but not in portal)
+        orphaned_user_names = existing_db_user_names - portal_user_names
+        orphaned_users = []
+        
+        for user in existing_db_users:
+            if user.name in orphaned_user_names:
+                orphaned_users.append({
+                    'id': user.id,
+                    'name': user.name,
+                    'roles': user.roles.split(',') if user.roles else [],
+                    'createdDate': user.created_date.isoformat() if user.created_date else None,
+                    'lastLogin': user.last_login.isoformat() if user.last_login else None,
+                    'status': user.status,
+                    'manager': user.manager,
+                    'portal': user.portal
+                })
+        
         # Commit changes
         db_session.commit()
         
-        return jsonify({
+        response_data = {
             'success': True,
-            'message': f"Successfully processed {user_count} users from {client} portal. Added {new_user_count} new users and updated {updated_user_count} existing users."
-        }), 200
+            'message': f"Successfully processed {user_count} users from {client} portal. Added {new_user_count} new users and updated {updated_user_count} existing users.",
+            'orphaned_users': orphaned_users
+        }
+        
+        return jsonify(response_data), 200
         
     except json.JSONDecodeError:
         return jsonify({'message': "Error parsing JSON output from SSH command"}), 500
@@ -159,5 +186,84 @@ def fetch_users_from_ssh():
         db_session.rollback()
         logging.error(f"Error processing users: {str(e)}")
         return jsonify({'message': f"Error processing users: {str(e)}"}), 500
+    finally:
+        db_session.close()
+
+@teleport_users_routes.route('/teleport/manage-orphaned-users', methods=['POST'])
+@token_required
+def manage_orphaned_users():
+    """Manage orphaned users (users in DB but not in portal)."""
+    data = request.json
+    portal = data.get('portal')
+    action = data.get('action')  # 'keep_all', 'delete_all', 'selective'
+    user_ids_to_keep = data.get('user_ids_to_keep', [])
+    
+    if not portal or not action:
+        return jsonify({'message': "Portal and action parameters are required"}), 400
+    
+    db_session = get_db_session()
+    
+    try:
+        if action == 'keep_all':
+            # Mark all orphaned users as inactive but keep them
+            orphaned_users = db_session.query(User).filter(User.portal == portal).all()
+            for user in orphaned_users:
+                user.status = 'inactive'
+            db_session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f"All orphaned users in {portal} portal marked as inactive"
+            }), 200
+            
+        elif action == 'delete_all':
+            # Delete all orphaned users for this portal
+            deleted_count = db_session.query(User).filter(User.portal == portal).delete()
+            db_session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f"Deleted {deleted_count} orphaned users from {portal} portal"
+            }), 200
+            
+        elif action == 'selective':
+            # Delete users not in the keep list
+            all_orphaned = db_session.query(User).filter(User.portal == portal).all()
+            users_to_delete = [user.id for user in all_orphaned if user.id not in user_ids_to_keep]
+            
+            if users_to_delete:
+                deleted_count = db_session.query(User).filter(User.id.in_(users_to_delete)).delete()
+                db_session.commit()
+                
+                # Mark kept users as inactive
+                for user_id in user_ids_to_keep:
+                    user = db_session.query(User).filter(User.id == user_id).first()
+                    if user:
+                        user.status = 'inactive'
+                db_session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'message': f"Deleted {deleted_count} users and kept {len(user_ids_to_keep)} users as inactive"
+                }), 200
+            else:
+                # Just mark kept users as inactive
+                for user_id in user_ids_to_keep:
+                    user = db_session.query(User).filter(User.id == user_id).first()
+                    if user:
+                        user.status = 'inactive'
+                db_session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'message': f"Kept {len(user_ids_to_keep)} users as inactive"
+                }), 200
+        else:
+            return jsonify({'message': "Invalid action. Use 'keep_all', 'delete_all', or 'selective'"}), 400
+            
+    except Exception as e:
+        db_session.rollback()
+        logging.error(f"Error managing orphaned users: {str(e)}")
+        return jsonify({'message': f"Error managing orphaned users: {str(e)}"}), 500
     finally:
         db_session.close()

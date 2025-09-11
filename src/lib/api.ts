@@ -72,7 +72,7 @@ export async function login(username: string, password: string): Promise<{ token
   return data;
 }
 
-export async function fetchUsersFromSSH(client: string): Promise<{ success: boolean; message: string }> {
+export async function fetchUsersFromSSH(client: string): Promise<{ success: boolean; message: string; orphaned_users?: User[] }> {
   // Get the token from localStorage
   const token = localStorage.getItem('token');
   
@@ -92,6 +92,38 @@ export async function fetchUsersFromSSH(client: string): Promise<{ success: bool
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.message || 'Failed to fetch users from SSH');
+  }
+  
+  return response.json();
+}
+
+export async function manageOrphanedUsers(
+  portal: string, 
+  action: 'keep_all' | 'delete_all' | 'selective', 
+  userIdsToKeep?: string[]
+): Promise<{ success: boolean; message: string }> {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Token is missing! Please login first.');
+  }
+  
+  const response = await fetch('/teleportui/teleport/manage-orphaned-users', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-access-token': token,
+    },
+    body: JSON.stringify({ 
+      portal, 
+      action, 
+      user_ids_to_keep: userIdsToKeep 
+    }),
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to manage orphaned users');
   }
   
   return response.json();

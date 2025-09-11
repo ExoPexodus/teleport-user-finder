@@ -20,8 +20,9 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { fetchUsersFromSSH } from '@/lib/api';
+import { fetchUsersFromSSH, manageOrphanedUsers } from '@/lib/api';
 import { LoginDialog } from '@/components/LoginDialog';
+import { OrphanedUsersDialog } from '@/components/OrphanedUsersDialog';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -45,6 +46,9 @@ export const Sidebar = ({
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [selectedPortal, setSelectedPortal] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [orphanedUsersDialogOpen, setOrphanedUsersDialogOpen] = useState(false);
+  const [orphanedUsers, setOrphanedUsers] = useState<User[]>([]);
+  const [currentPortal, setCurrentPortal] = useState<string>('');
   
   const portalOptions = ['kocharsoft', 'maxicus', 'igzy'];
   
@@ -86,12 +90,23 @@ export const Sidebar = ({
     setIsLoading(true);
     try {
       const result = await fetchUsersFromSSH(selectedPortal);
+      
       toast({
         title: "Users Fetched",
         description: result.message || "Users fetched successfully"
       });
-      // Close dialog and refresh data
+      
+      // Close fetch dialog
       setFetchDialogOpen(false);
+      
+      // Check for orphaned users
+      if (result.orphaned_users && result.orphaned_users.length > 0) {
+        setOrphanedUsers(result.orphaned_users);
+        setCurrentPortal(selectedPortal);
+        setOrphanedUsersDialogOpen(true);
+      }
+      
+      // Refresh data
       if (onFetchData) {
         onFetchData();
       }
@@ -119,6 +134,34 @@ export const Sidebar = ({
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleManageOrphanedUsers = async (
+    action: 'keep_all' | 'delete_all' | 'selective', 
+    userIdsToKeep?: string[]
+  ) => {
+    try {
+      const result = await manageOrphanedUsers(currentPortal, action, userIdsToKeep);
+      
+      toast({
+        title: "Users Managed",
+        description: result.message
+      });
+      
+      setOrphanedUsersDialogOpen(false);
+      
+      // Refresh data after managing users
+      if (onFetchData) {
+        onFetchData();
+      }
+    } catch (error) {
+      console.error("Error managing orphaned users:", error);
+      toast({
+        title: "Error Managing Users",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive"
+      });
     }
   };
 
@@ -294,6 +337,15 @@ export const Sidebar = ({
         isOpen={loginDialogOpen} 
         onClose={() => setLoginDialogOpen(false)}
         onSuccess={handleLoginSuccess}
+      />
+
+      {/* Orphaned Users Dialog */}
+      <OrphanedUsersDialog
+        isOpen={orphanedUsersDialogOpen}
+        onClose={() => setOrphanedUsersDialogOpen(false)}
+        orphanedUsers={orphanedUsers}
+        portal={currentPortal}
+        onManageUsers={handleManageOrphanedUsers}
       />
     </>
   );
