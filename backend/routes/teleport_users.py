@@ -216,30 +216,41 @@ def manage_orphaned_users():
     try:
         if action == 'keep_all':
             # Mark all orphaned users as inactive but keep them
-            orphaned_users = db_session.query(User).filter(User.portal == portal).all()
-            for user in orphaned_users:
-                user.status = 'inactive'
-            db_session.commit()
-            
-            return jsonify({
-                'success': True,
-                'message': f"All orphaned users in {portal} portal marked as inactive"
-            }), 200
+            # We need the specific orphaned user IDs passed from frontend
+            orphaned_user_ids = data.get('orphaned_user_ids', [])
+            if orphaned_user_ids:
+                updated_count = db_session.query(User).filter(
+                    and_(User.portal == portal, User.id.in_(orphaned_user_ids))
+                ).update({'status': 'inactive'}, synchronize_session=False)
+                db_session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'message': f"Marked {updated_count} orphaned users in {portal} portal as inactive"
+                }), 200
+            else:
+                return jsonify({'message': "No orphaned user IDs provided"}), 400
             
         elif action == 'delete_all':
-            # Delete all orphaned users for this portal
-            deleted_count = db_session.query(User).filter(User.portal == portal).delete()
-            db_session.commit()
-            
-            return jsonify({
-                'success': True,
-                'message': f"Deleted {deleted_count} orphaned users from {portal} portal"
-            }), 200
+            # Delete ONLY the orphaned users for this portal - NOT ALL USERS
+            orphaned_user_ids = data.get('orphaned_user_ids', [])
+            if orphaned_user_ids:
+                deleted_count = db_session.query(User).filter(
+                    and_(User.portal == portal, User.id.in_(orphaned_user_ids))
+                ).delete(synchronize_session=False)
+                db_session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'message': f"Deleted {deleted_count} orphaned users from {portal} portal"
+                }), 200
+            else:
+                return jsonify({'message': "No orphaned user IDs provided"}), 400
             
         elif action == 'selective':
-            # Delete users not in the keep list
-            all_orphaned = db_session.query(User).filter(User.portal == portal).all()
-            users_to_delete = [user.id for user in all_orphaned if user.id not in user_ids_to_keep]
+            # Delete users not in the keep list (from orphaned users only)
+            orphaned_user_ids = data.get('orphaned_user_ids', [])
+            users_to_delete = [user_id for user_id in orphaned_user_ids if user_id not in user_ids_to_keep]
             
             if users_to_delete:
                 deleted_count = db_session.query(User).filter(User.id.in_(users_to_delete)).delete()

@@ -100,7 +100,8 @@ export async function fetchUsersFromSSH(client: string): Promise<{ success: bool
 export async function manageOrphanedUsers(
   portal: string, 
   action: 'keep_all' | 'delete_all' | 'selective', 
-  userIdsToKeep?: string[]
+  userIdsToKeep?: string[],
+  orphanedUserIds?: string[]
 ): Promise<{ success: boolean; message: string }> {
   const token = localStorage.getItem('token');
   
@@ -117,7 +118,8 @@ export async function manageOrphanedUsers(
     body: JSON.stringify({ 
       portal, 
       action, 
-      user_ids_to_keep: userIdsToKeep 
+      user_ids_to_keep: userIdsToKeep,
+      orphaned_user_ids: orphanedUserIds
     }),
   });
   
