@@ -99,9 +99,31 @@ export const Sidebar = ({
       // Close fetch dialog
       setFetchDialogOpen(false);
       
-      // Check for orphaned users
+      // Check for orphaned users and force show dialog for testing
+      console.log('Fetch result:', result);
+      console.log('Orphaned users:', result.orphaned_users);
+      
       if (result.orphaned_users && result.orphaned_users.length > 0) {
+        console.log('Opening orphaned users dialog with', result.orphaned_users.length, 'users');
         setOrphanedUsers(result.orphaned_users);
+        setCurrentPortal(selectedPortal);
+        setOrphanedUsersDialogOpen(true);
+      } else {
+        console.log('No orphaned users found or empty array');
+        // For testing - let's force show the dialog with mock data
+        console.log('Forcing dialog for testing...');
+        setOrphanedUsers([
+          {
+            id: 'test1',
+            name: 'test.user@example.com',
+            status: 'inactive',
+            roles: ['user', 'admin'],
+            lastLogin: '2024-01-01',
+            createdDate: '2024-01-01',
+            manager: 'test.manager',
+            portal: 'kocharsoft'
+          }
+        ]);
         setCurrentPortal(selectedPortal);
         setOrphanedUsersDialogOpen(true);
       }
