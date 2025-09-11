@@ -119,16 +119,26 @@ def fetch_users_from_ssh():
                     portal_user_names.add(name)
                     user_id = f"{name.replace('@', '_at_')}_{client}"
                     
-                    # Check if this user exists by ID
+                    # Check if this user exists by ID first, then by name+portal as fallback
                     existing_user = db_session.query(User).filter(User.id == user_id).first()
+                    if not existing_user:
+                        # Fallback check by name and portal (for legacy data)
+                        existing_user = db_session.query(User).filter(
+                            and_(User.name == name, User.portal == client)
+                        ).first()
+                        # If found by name+portal but different ID, update the ID
+                        if existing_user:
+                            existing_user.id = user_id
                     
                     if existing_user:
-                        # Update existing user's roles
+                        # Update existing user's roles and status
                         existing_user.roles = ','.join(roles)
                         existing_user.status = 'active'  # Mark as active since they exist in portal
+                        existing_user.name = name  # Ensure name is current
+                        existing_user.portal = client  # Ensure portal is current
                         updated_user_count += 1
                     else:
-                        # Create new user
+                        # Create new user only if it doesn't exist
                         created_date = user_data.get('spec', {}).get('created_by', {}).get('time')
                         try:
                             created_date_obj = datetime.strptime(created_date, "%Y-%m-%dT%H:%M:%S.%fZ") if created_date else datetime.utcnow()
