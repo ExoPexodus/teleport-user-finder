@@ -21,10 +21,10 @@ services:
     network_mode: "host"
     environment:
       # Database connection
-      - DB_HOST=10.22.0.3
-      - DB_NAME=teleport
-      - DB_USER=teleport
-      - DB_PASSWORD=iijsurnakscuarkasda113ksa
+      - DB_HOST=${DB_HOST:-host}
+      - DB_NAME=${DB_NAME:-name}
+      - DB_USER=${DB_USER:-password}
+      - DB_PASSWORD=${DB_PASSWORD:-somerandompassword}
       - DEBUG=False
       # Teleport authentication
       - SECRET_KEY=${SECRET_KEY:-default_secret_key}
