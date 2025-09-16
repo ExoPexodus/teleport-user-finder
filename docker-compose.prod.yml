@@ -1,0 +1,47 @@
+
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8888:80"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_USERNAME=${AUTH_USERNAME:-admin}
+      - VITE_API_PASSWORD=${AUTH_PASSWORD:-password}
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    network_mode: "host"
+    environment:
+      # Database connection
+      - DB_HOST=10.22.0.3
+      - DB_NAME=teleport
+      - DB_USER=teleport
+      - DB_PASSWORD=iijsurnakscuarkasda113ksa
+      - DEBUG=False
+      # Teleport authentication
+      - SECRET_KEY=${SECRET_KEY:-default_secret_key}
+      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - AUTH_PASSWORD_HASH=${AUTH_PASSWORD_HASH}
+      # SSH configuration for teleport
+      - SSH_HOSTS=${SSH_HOSTS:-'{"default":"localhost"}'}
+      - SSH_PORT=${SSH_PORT:-22}
+      - SSH_USER=${SSH_USER:-root}
+      - SSH_KEY_PATH=${SSH_KEY_PATH:-/app/ssh_key}
+    volumes:
+      - ${SSH_KEY_LOCAL_PATH:-./ssh_key}:${SSH_KEY_PATH:-/app/ssh_key}:ro
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-your_gemini_api_key}
+      - BACKEND_URL=http://backend:5000
