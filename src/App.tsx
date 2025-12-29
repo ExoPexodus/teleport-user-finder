@@ -7,7 +7,6 @@ import Index from "./pages/Index";
 import RoleScheduler from "./pages/RoleScheduler";
 import ScheduledJobs from "./pages/ScheduledJobs";
 import NotFound from "./pages/NotFound";
-import { AIAssistantButton } from "./components/AIAssistant/AIAssistantButton";
 
 const queryClient = new QueryClient();
 
@@ -23,7 +22,6 @@ const App = () => (
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-      <AIAssistantButton />
     </BrowserRouter>
   </QueryClientProvider>
 );
