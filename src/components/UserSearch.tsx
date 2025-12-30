@@ -1,8 +1,7 @@
 
 import React from 'react';
 import { User } from '@/types/user';
-import { SearchBar } from '@/components/SearchBar';
-import { UserFilter } from '@/components/UserFilter';
+import { FilterBar } from '@/components/FilterBar';
 import { ViewModeToggle, ViewMode } from '@/components/ViewModeToggle';
 
 interface UserSearchProps {
@@ -25,6 +24,7 @@ interface UserSearchProps {
   onRoleExclusionChange: (role: string, excluded: boolean) => void;
   onRoleInclusionChange: (role: string, included: boolean) => void;
   onSelectAllRoles: (type: 'include' | 'exclude', selected: boolean) => void;
+  filteredCount?: number;
 }
 
 export const UserSearch = ({
@@ -36,38 +36,43 @@ export const UserSearch = ({
   viewMode,
   setViewMode,
   selectedPortal,
+  setSelectedPortal,
   selectedManager,
+  setSelectedManager,
   excludedRoles,
   includedRoles,
   onFilterChange,
   onRoleExclusionChange,
   onRoleInclusionChange,
-  onSelectAllRoles
+  onSelectAllRoles,
+  filteredCount = 0
 }: UserSearchProps) => {
+  if (isLoading || error || !allUsers) {
+    return null;
+  }
+
   return (
-    <div className="mb-8 bg-teleport-gray rounded-lg p-6 shadow-lg border border-slate-800">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-white">User Search</h1>
+    <div className="mb-6 space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-xl font-semibold text-foreground">Users</h1>
         <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
       </div>
       
-      <div className="space-y-4">
-        <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-        
-        {!isLoading && !error && allUsers && (
-          <UserFilter 
-            users={allUsers} 
-            onFilterChange={onFilterChange}
-            selectedPortal={selectedPortal}
-            selectedManager={selectedManager}
-            excludedRoles={excludedRoles}
-            includedRoles={includedRoles}
-            onRoleExclusionChange={onRoleExclusionChange}
-            onRoleInclusionChange={onRoleInclusionChange}
-            onSelectAllRoles={onSelectAllRoles}
-          />
-        )}
-      </div>
+      <FilterBar
+        users={allUsers}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        selectedPortal={selectedPortal}
+        setSelectedPortal={setSelectedPortal}
+        selectedManager={selectedManager}
+        setSelectedManager={setSelectedManager}
+        excludedRoles={excludedRoles}
+        includedRoles={includedRoles}
+        onRoleInclusionChange={onRoleInclusionChange}
+        onSelectAllRoles={onSelectAllRoles}
+        totalCount={allUsers.length}
+        filteredCount={filteredCount}
+      />
     </div>
   );
 };

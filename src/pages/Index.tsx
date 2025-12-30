@@ -19,16 +19,14 @@ const Index = () => {
   const [selectedManager, setSelectedManager] = useState<string | null>(null);
   const [excludedRoles, setExcludedRoles] = useState<string[]>([]);
   const [includedRoles, setIncludedRoles] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('card');
+  const [viewMode, setViewMode] = useState<ViewMode>('table'); // Default to table
   const { toast } = useToast();
   
-  // Fetch all users initially, then filter client-side
   const { data: allUsers, isLoading, error, refetch } = useQuery({
     queryKey: ['users'],
     queryFn: () => fetchUsers(),
   });
 
-  // When users data is loaded, initialize includedRoles with all available roles
   useEffect(() => {
     if (allUsers && allUsers.length > 0) {
       const allAvailableRoles = Array.from(
@@ -38,7 +36,6 @@ const Index = () => {
     }
   }, [allUsers]);
 
-  // Filter users by search term, portal, manager and roles
   const filteredUsers = (allUsers || []).filter(user => {
     const matchesSearch = 
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -47,11 +44,7 @@ const Index = () => {
     
     const matchesPortal = !selectedPortal || user.portal === selectedPortal;
     const matchesManager = !selectedManager || user.manager === selectedManager;
-    
-    // Check if user has any excluded roles
     const hasExcludedRole = user.roles.some(role => excludedRoles.includes(role));
-    
-    // Check if user has at least one included role (if includedRoles is not empty)
     const hasIncludedRole = includedRoles.length === 0 || user.roles.some(role => includedRoles.includes(role));
     
     return matchesSearch && matchesPortal && matchesManager && !hasExcludedRole && hasIncludedRole;
@@ -59,78 +52,53 @@ const Index = () => {
 
   const handleUserUpdate = async (updatedUser: User) => {
     try {
-      // Log the user we're trying to update for debugging
-      console.log('Updating user:', updatedUser);
-      
       await updateUser(updatedUser);
-      refetch(); // Refresh data after update
-      
+      refetch();
       toast({
         title: "User updated",
-        description: `${updatedUser.name}'s information has been updated successfully.`
+        description: `${updatedUser.name}'s information has been updated.`
       });
     } catch (error) {
-      console.error('Update error:', error);
       toast({
         title: "Update failed",
-        description: "Failed to update user information. Please try again.",
+        description: "Failed to update user information.",
         variant: "destructive"
       });
     }
   };
 
   const handleFilterChange = (field: 'portal' | 'manager', value: string) => {
-    if (field === 'portal') {
-      setSelectedPortal(value || null);
-    } else if (field === 'manager') {
-      setSelectedManager(value || null);
-    }
+    if (field === 'portal') setSelectedPortal(value || null);
+    else if (field === 'manager') setSelectedManager(value || null);
   };
 
   const handleRoleExclusionChange = (role: string, excluded: boolean) => {
-    if (excluded) {
-      setExcludedRoles(prev => [...prev, role]);
-    } else {
-      setExcludedRoles(prev => prev.filter(r => r !== role));
-    }
+    setExcludedRoles(prev => excluded ? [...prev, role] : prev.filter(r => r !== role));
   };
 
   const handleRoleInclusionChange = (role: string, included: boolean) => {
-    if (included) {
-      setIncludedRoles(prev => [...prev, role]);
-    } else {
-      setIncludedRoles(prev => prev.filter(r => r !== role));
-    }
+    setIncludedRoles(prev => included ? [...prev, role] : prev.filter(r => r !== role));
   };
 
   const handleSelectAllRoles = (type: 'include' | 'exclude', selected: boolean) => {
     if (!allUsers) return;
-    
-    const allAvailableRoles = Array.from(
-      new Set(allUsers.flatMap(user => user.roles))
-    );
-    
-    if (type === 'include') {
-      setIncludedRoles(selected ? allAvailableRoles : []);
-    } else {
-      setExcludedRoles(selected ? allAvailableRoles : []);
-    }
+    const allAvailableRoles = Array.from(new Set(allUsers.flatMap(user => user.roles)));
+    if (type === 'include') setIncludedRoles(selected ? allAvailableRoles : []);
+    else setExcludedRoles(selected ? allAvailableRoles : []);
   };
 
   const handleDeleteUsers = async (userIds: string[]) => {
     try {
       await deleteUsers(userIds);
-      refetch(); // Refresh data after deletion
-      
+      refetch();
       toast({
         title: "Users deleted",
-        description: `${userIds.length} user${userIds.length !== 1 ? 's' : ''} deleted successfully.`
+        description: `${userIds.length} user${userIds.length !== 1 ? 's' : ''} deleted.`
       });
     } catch (error) {
-      console.error('Delete error:', error);
       toast({
         title: "Delete failed",
-        description: "Failed to delete users. Please try again.",
+        description: "Failed to delete users.",
         variant: "destructive"
       });
     }
@@ -138,50 +106,34 @@ const Index = () => {
 
   const handleExportAllUsers = () => {
     if (!allUsers || allUsers.length === 0) {
-      toast({
-        title: "No Data Available",
-        description: "There are no users to export.",
-        variant: "destructive"
-      });
+      toast({ title: "No Data", description: "No users to export.", variant: "destructive" });
       return;
     }
     
-    // Export all users to CSV
     const headers = ["ID", "Name", "Roles", "Status", "Created Date", "Last Login", "Manager", "Portal"];
     const userRows = allUsers.map(user => [
-      user.id,
-      `"${user.name}"`,
-      `"${user.roles.join("; ")}"`,
-      user.status,
+      user.id, `"${user.name}"`, `"${user.roles.join("; ")}"`, user.status,
       new Date(user.createdDate).toLocaleDateString(),
       user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never",
       user.manager ? `"${user.manager}"` : "None",
       user.portal ? `"${user.portal}"` : "None"
     ]);
     
-    const csvContent = [
-      headers.join(","),
-      ...userRows.map(row => row.join(","))
-    ].join("\n");
-    
+    const csvContent = [headers.join(","), ...userRows.map(row => row.join(","))].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
     link.setAttribute('download', `all_users_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     
-    toast({
-      title: "CSV Downloaded",
-      description: `${allUsers.length} users exported to CSV successfully.`
-    });
+    toast({ title: "Exported", description: `${allUsers.length} users exported.` });
   };
 
   return (
-    <div className="min-h-screen bg-teleport-darkgray">
+    <div className="min-h-screen bg-background">
       <Sidebar 
         isOpen={sidebarOpen} 
         setIsOpen={setSidebarOpen} 
@@ -189,9 +141,9 @@ const Index = () => {
         onFetchData={refetch}
         onExportCsv={handleExportAllUsers}
       />
-      <div className={`transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-16'}`}>
+      <div className={`transition-all duration-300 ${sidebarOpen ? 'ml-60' : 'ml-16'}`}>
         <Header />
-        <main className="container px-4 py-8">
+        <main className="p-6">
           <UserSearch
             allUsers={allUsers}
             isLoading={isLoading}
@@ -212,12 +164,13 @@ const Index = () => {
             onRoleExclusionChange={handleRoleExclusionChange}
             onRoleInclusionChange={handleRoleInclusionChange}
             onSelectAllRoles={handleSelectAllRoles}
+            filteredCount={filteredUsers.length}
           />
           
           {isLoading ? (
             <Loader />
           ) : error ? (
-            <ErrorDisplay message="Failed to load users. Please try again later." />
+            <ErrorDisplay message="Failed to load users." />
           ) : (
             <UserList 
               users={filteredUsers} 
