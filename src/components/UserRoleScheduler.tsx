@@ -2,11 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '@/types/user';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CalendarIcon, Clock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { CalendarIcon, Clock, Plus, Minus, Zap, CalendarDays, ChevronRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
@@ -21,8 +22,8 @@ interface UserRoleSchedulerProps {
 }
 
 export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [time, setTime] = useState('12:00');
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [time, setTime] = useState('09:00');
   const [roleAction, setRoleAction] = useState<'add' | 'remove'>('remove');
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,17 +31,15 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  // Fetch available roles for the user's portal if action is 'add'
   const { data: availableRoles, isLoading: isLoadingRoles } = useQuery({
     queryKey: ['available-roles', user.portal, roleAction],
     queryFn: () => roleAction === 'add' && user.portal ? fetchAvailableRoles(user.portal) : Promise.resolve([]),
     enabled: roleAction === 'add' && !!user.portal,
   });
 
-  // Reset selected roles when changing action type
   useEffect(() => {
     setSelectedRoles([]);
-  }, [roleAction]);
+  }, [roleAction, user.id]);
 
   const handleRoleToggle = (role: string) => {
     setSelectedRoles(current => 
@@ -51,26 +50,24 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
   };
 
   const handleLoginSuccess = () => {
-    // After successful login, try scheduling again
     handleSchedule();
   };
 
   const handleExecuteNow = async () => {
     if (selectedRoles.length === 0) {
       toast({
-        title: "Missing information",
-        description: "Please select at least one role",
+        title: "No roles selected",
+        description: "Please select at least one role to continue",
         variant: "destructive"
       });
       return;
     }
 
-    // Check if token exists
     const token = localStorage.getItem('token');
     if (!token) {
       toast({
         title: "Authentication Required",
-        description: "You need to login before executing role changes",
+        description: "Please login to execute role changes",
         variant: "destructive"
       });
       setLoginDialogOpen(true);
@@ -89,27 +86,21 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
       );
 
       toast({
-        title: "Role Change Executed",
-        description: `Role changes applied successfully: ${response.message}`,
+        title: "Success",
+        description: response.message,
       });
+      setSelectedRoles([]);
     } catch (error) {
       console.error('Execution error:', error);
       
-      // Check if the error is due to token expiration or authentication issues
       if (error instanceof Error && 
          (error.message.includes('Token has expired') || 
           error.message.includes('Token is invalid') || 
           error.message.includes('Token is missing'))) {
-        
-        toast({
-          title: "Authentication Required",
-          description: "Your session has expired. Please login again.",
-          variant: "destructive"
-        });
         setLoginDialogOpen(true);
       } else {
         toast({
-          title: "Error Executing Role Change",
+          title: "Error",
           description: error instanceof Error ? error.message : "An unknown error occurred",
           variant: "destructive"
         });
@@ -129,12 +120,11 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
       return;
     }
 
-    // Check if token exists
     const token = localStorage.getItem('token');
     if (!token) {
       toast({
         title: "Authentication Required",
-        description: "You need to login before scheduling role changes",
+        description: "Please login to schedule role changes",
         variant: "destructive"
       });
       setLoginDialogOpen(true);
@@ -144,12 +134,11 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
     setIsSubmitting(true);
 
     try {
-      // Convert date and time to a combined datetime
       const [hours, minutes] = time.split(':').map(Number);
       const scheduledTime = new Date(date);
       scheduledTime.setHours(hours, minutes);
 
-      const response = await scheduleRoleChange({
+      await scheduleRoleChange({
         userId: user.id,
         userName: user.name,
         portal: user.portal,
@@ -159,27 +148,22 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
       });
 
       toast({
-        title: "Schedule created",
+        title: "Scheduled successfully",
         description: `Role changes scheduled for ${format(scheduledTime, 'PPP')} at ${format(scheduledTime, 'p')}`,
       });
+      setSelectedRoles([]);
+      setDate(undefined);
     } catch (error) {
       console.error('Scheduling error:', error);
       
-      // Check if the error is due to token expiration or authentication issues
       if (error instanceof Error && 
          (error.message.includes('Token has expired') || 
           error.message.includes('Token is invalid') || 
           error.message.includes('Token is missing'))) {
-        
-        toast({
-          title: "Authentication Required",
-          description: "Your session has expired. Please login again.",
-          variant: "destructive"
-        });
         setLoginDialogOpen(true);
       } else {
         toast({
-          title: "Error Scheduling Role Change",
+          title: "Error",
           description: error instanceof Error ? error.message : "An unknown error occurred",
           variant: "destructive"
         });
@@ -189,157 +173,224 @@ export function UserRoleScheduler({ user }: UserRoleSchedulerProps) {
     }
   };
 
-  // Determine which roles to display based on the action
-  const rolesToDisplay = roleAction === 'remove' 
-    ? user.roles 
-    : (availableRoles || []);
+  const rolesToDisplay = roleAction === 'remove' ? user.roles : (availableRoles || []);
+  const canProceed = selectedRoles.length > 0;
+
+  // Generate human-readable summary
+  const getSummary = () => {
+    if (selectedRoles.length === 0) return null;
+    const action = roleAction === 'add' ? 'Add' : 'Remove';
+    const roles = selectedRoles.join(', ');
+    return `${action} roles: ${roles} ${roleAction === 'add' ? 'to' : 'from'} ${user.name} on ${user.portal}`;
+  };
 
   return (
     <>
-      <Card className="bg-teleport-gray border-slate-800">
-        <CardHeader>
-          <CardTitle className="text-white">Schedule Role Changes</CardTitle>
-          <CardDescription>
-            User: <span className="font-semibold">{user.name}</span>
-            {user.portal && <span> • Portal: <span className="font-semibold">{user.portal}</span></span>}
+      <Card className="border-border bg-card">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-medium">
+              2
+            </div>
+            <CardTitle className="text-base">Configure Role Change</CardTitle>
+          </div>
+          <CardDescription className="flex items-center gap-2">
+            <span>Managing:</span>
+            <Badge variant="outline" className="font-medium">{user.name}</Badge>
+            <span className="text-muted-foreground">on</span>
+            <Badge variant="outline">{user.portal}</Badge>
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div>
-                <Label className="text-white">Action</Label>
-                <div className="flex space-x-4 mt-2">
-                  <div className="flex items-center space-x-2">
-                    <input 
-                      type="radio" 
-                      id="remove-roles"
-                      checked={roleAction === 'remove'} 
-                      onChange={() => setRoleAction('remove')}
-                    />
-                    <Label htmlFor="remove-roles">Remove Roles</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input 
-                      type="radio" 
-                      id="add-roles"
-                      checked={roleAction === 'add'} 
-                      onChange={() => setRoleAction('add')}
-                    />
-                    <Label htmlFor="add-roles">Add Roles</Label>
-                  </div>
+        <CardContent className="space-y-6">
+          {/* Action Selection */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Action Type</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setRoleAction('remove')}
+                className={cn(
+                  "flex items-center gap-3 p-4 rounded-lg border-2 transition-all text-left",
+                  roleAction === 'remove'
+                    ? "border-status-error bg-status-error/5"
+                    : "border-border hover:border-muted-foreground/30"
+                )}
+              >
+                <div className={cn(
+                  "p-2 rounded-lg",
+                  roleAction === 'remove' ? "bg-status-error/10" : "bg-muted"
+                )}>
+                  <Minus className={cn("h-4 w-4", roleAction === 'remove' ? "text-status-error" : "text-muted-foreground")} />
                 </div>
-              </div>
-
-              <div>
-                <Label className="text-white mb-2 block">
-                  {roleAction === 'remove' ? 'Select Roles to Remove' : 'Select Roles to Add'}
-                </Label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 max-h-48 overflow-y-auto bg-slate-800 rounded-md">
-                  {isLoadingRoles && roleAction === 'add' ? (
-                    <div className="col-span-3 text-center p-4 text-gray-400">Loading available roles...</div>
-                  ) : rolesToDisplay.length > 0 ? (
-                    rolesToDisplay.map(role => (
-                      <div key={role} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`role-${role}`} 
-                          checked={selectedRoles.includes(role)}
-                          onCheckedChange={() => handleRoleToggle(role)}
-                        />
-                        <Label 
-                          htmlFor={`role-${role}`}
-                          className="text-sm text-gray-300"
-                        >
-                          {role}
-                        </Label>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-gray-400 col-span-3 text-center p-2">
-                      {roleAction === 'add' 
-                        ? "No additional roles available to add" 
-                        : "No roles assigned to remove"}
-                    </div>
-                  )}
+                <div>
+                  <div className={cn("font-medium", roleAction === 'remove' ? "text-status-error" : "text-foreground")}>
+                    Remove Roles
+                  </div>
+                  <div className="text-xs text-muted-foreground">Revoke access from user</div>
                 </div>
-              </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoleAction('add')}
+                className={cn(
+                  "flex items-center gap-3 p-4 rounded-lg border-2 transition-all text-left",
+                  roleAction === 'add'
+                    ? "border-status-success bg-status-success/5"
+                    : "border-border hover:border-muted-foreground/30"
+                )}
+              >
+                <div className={cn(
+                  "p-2 rounded-lg",
+                  roleAction === 'add' ? "bg-status-success/10" : "bg-muted"
+                )}>
+                  <Plus className={cn("h-4 w-4", roleAction === 'add' ? "text-status-success" : "text-muted-foreground")} />
+                </div>
+                <div>
+                  <div className={cn("font-medium", roleAction === 'add' ? "text-status-success" : "text-foreground")}>
+                    Add Roles
+                  </div>
+                  <div className="text-xs text-muted-foreground">Grant new permissions</div>
+                </div>
+              </button>
+            </div>
+          </div>
 
-              <div>
-                <Button
-                  variant="default"
-                  className="w-full"
-                  disabled={isExecutingNow || selectedRoles.length === 0}
-                  onClick={handleExecuteNow}
-                >
-                  {isExecutingNow ? "Applying Changes..." : `Apply ${roleAction === 'add' ? "New" : "Removal of"} Roles Now`}
-                </Button>
+          {/* Role Selection */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">
+              Select Roles to {roleAction === 'remove' ? 'Remove' : 'Add'}
+            </Label>
+            <div className="p-4 rounded-lg border border-border bg-background">
+              {isLoadingRoles && roleAction === 'add' ? (
+                <div className="text-center py-4 text-muted-foreground">Loading available roles...</div>
+              ) : rolesToDisplay.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {rolesToDisplay.map(role => (
+                    <label
+                      key={role}
+                      className={cn(
+                        "flex items-center gap-2 p-2.5 rounded-md border cursor-pointer transition-all",
+                        selectedRoles.includes(role)
+                          ? roleAction === 'remove'
+                            ? "border-status-error bg-status-error/5"
+                            : "border-status-success bg-status-success/5"
+                          : "border-border hover:bg-muted/50"
+                      )}
+                    >
+                      <Checkbox 
+                        checked={selectedRoles.includes(role)}
+                        onCheckedChange={() => handleRoleToggle(role)}
+                      />
+                      <span className="text-sm">{role}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-muted-foreground flex items-center justify-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  {roleAction === 'add' ? "No additional roles available" : "No roles assigned"}
+                </div>
+              )}
+            </div>
+            {selectedRoles.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {selectedRoles.length} role{selectedRoles.length !== 1 ? 's' : ''} selected
+              </p>
+            )}
+          </div>
+
+          {/* Summary Preview */}
+          {canProceed && (
+            <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 text-primary mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Ready to apply</p>
+                  <p className="text-sm text-muted-foreground mt-1">{getSummary()}</p>
+                </div>
               </div>
             </div>
+          )}
 
-            <div className="space-y-4">
-              <div>
-                <Label className="text-white mb-2 block">Schedule for Later</Label>
-                <div className="p-4 bg-slate-800 rounded-md space-y-4">
-                  <div>
-                    <Label className="text-white mb-2 block">Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !date && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {date ? format(date, 'PPP') : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={date}
-                          onSelect={setDate}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+          {/* Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            {/* Execute Now */}
+            <div className="space-y-3 p-4 rounded-lg border border-border">
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-status-warning" />
+                <span className="font-medium text-sm">Execute Immediately</span>
+              </div>
+              <Button
+                className="w-full"
+                variant={roleAction === 'remove' ? 'destructive' : 'default'}
+                disabled={isExecutingNow || !canProceed}
+                onClick={handleExecuteNow}
+              >
+                {isExecutingNow ? (
+                  "Applying..."
+                ) : (
+                  <>
+                    Apply Now
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </>
+                )}
+              </Button>
+            </div>
 
-                  <div>
-                    <Label htmlFor="time" className="text-white">Time</Label>
-                    <div className="flex items-center mt-2">
-                      <Clock className="mr-2 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="time"
-                        type="time"
-                        value={time}
-                        onChange={(e) => setTime(e.target.value)}
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-
-                  <Button 
-                    onClick={handleSchedule} 
-                    className="w-full"
-                    disabled={isSubmitting || !date || selectedRoles.length === 0}
-                  >
-                    {isSubmitting ? 'Scheduling...' : 'Schedule Role Change'}
-                  </Button>
+            {/* Schedule */}
+            <div className="space-y-3 p-4 rounded-lg border border-border">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-primary" />
+                <span className="font-medium text-sm">Schedule for Later</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {date ? format(date, 'MMM d') : 'Date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={setDate}
+                      initialFocus
+                      disabled={(d) => d < new Date()}
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
               </div>
+              <Button 
+                onClick={handleSchedule} 
+                className="w-full"
+                variant="outline"
+                disabled={isSubmitting || !date || !canProceed}
+              >
+                {isSubmitting ? 'Scheduling...' : 'Schedule'}
+              </Button>
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-end space-x-2">
-          <Button variant="secondary" onClick={() => setSelectedRoles([])}>
-            Clear Selection
-          </Button>
-        </CardFooter>
       </Card>
 
-      {/* Login Dialog */}
       <LoginDialog 
         isOpen={loginDialogOpen} 
         onClose={() => setLoginDialogOpen(false)}
