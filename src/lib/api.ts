@@ -6,11 +6,31 @@ import { RoleChangeSchedule } from '@/types/schedule';
 const API_URL = '/teleportui/api';
 
 export async function fetchUsers(portal?: string): Promise<User[]> {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Token is missing! Please login first.');
+  }
+  
   const url = portal 
     ? `${API_URL}/users?portal=${encodeURIComponent(portal)}` 
     : `${API_URL}/users`;
   
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    headers: {
+      'x-access-token': token,
+    },
+  });
+  
+  if (response.status === 403) {
+    const errorData = await response.json();
+    if (errorData.message?.includes('Token has expired')) {
+      localStorage.removeItem('token');
+      throw new Error('Token has expired! Please login again.');
+    }
+    throw new Error(errorData.message || 'Authentication failed');
+  }
+  
   if (!response.ok) {
     throw new Error('Failed to fetch users');
   }
@@ -18,13 +38,29 @@ export async function fetchUsers(portal?: string): Promise<User[]> {
 }
 
 export async function updateUser(user: User): Promise<{ success: boolean }> {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Token is missing! Please login first.');
+  }
+  
   const response = await fetch(`${API_URL}/users/${user.id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
+      'x-access-token': token,
     },
     body: JSON.stringify(user),
   });
+  
+  if (response.status === 403) {
+    const errorData = await response.json();
+    if (errorData.message?.includes('Token has expired')) {
+      localStorage.removeItem('token');
+      throw new Error('Token has expired! Please login again.');
+    }
+    throw new Error(errorData.message || 'Authentication failed');
+  }
   
   if (!response.ok) {
     throw new Error('Failed to update user');
@@ -34,13 +70,29 @@ export async function updateUser(user: User): Promise<{ success: boolean }> {
 }
 
 export async function deleteUsers(userIds: string[]): Promise<{ success: boolean }> {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    throw new Error('Token is missing! Please login first.');
+  }
+  
   const response = await fetch(`${API_URL}/users`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
+      'x-access-token': token,
     },
     body: JSON.stringify({ ids: userIds }),
   });
+  
+  if (response.status === 403) {
+    const errorData = await response.json();
+    if (errorData.message?.includes('Token has expired')) {
+      localStorage.removeItem('token');
+      throw new Error(errorData.message || 'Authentication failed');
+    }
+    throw new Error(errorData.message || 'Authentication failed');
+  }
   
   if (!response.ok) {
     throw new Error('Failed to delete users');
@@ -48,6 +100,7 @@ export async function deleteUsers(userIds: string[]): Promise<{ success: boolean
   
   return response.json();
 }
+
 
 export async function login(username: string, password: string): Promise<{ token: string }> {
   const response = await fetch('/teleportui/teleport/login', {

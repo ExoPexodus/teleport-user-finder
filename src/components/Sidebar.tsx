@@ -2,9 +2,10 @@
 import React, { useState } from 'react';
 import { User } from '@/types/user';
 import { Link } from 'react-router-dom';
-import { Clock, Download, Users, Calendar } from 'lucide-react';
+import { Clock, Download, Users, Calendar, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Dialog, 
   DialogContent, 
@@ -42,6 +43,7 @@ export const Sidebar = ({
   onExportCsv 
 }: SidebarProps) => {
   const { toast } = useToast();
+  const { logout } = useAuth();
   const [fetchDialogOpen, setFetchDialogOpen] = useState(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [selectedPortal, setSelectedPortal] = useState<string>('');
@@ -284,6 +286,16 @@ export const Sidebar = ({
             >
               <Download size={16} className={`${isOpen ? 'mr-2' : 'mx-auto'}`} />
               {isOpen && <span>Export CSV</span>}
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              className={`w-full justify-start text-red-400 border-slate-700 hover:bg-red-900/50 hover:text-red-300 ${!isOpen && 'px-2'}`}
+              onClick={logout}
+            >
+              <LogOut size={16} className={`${isOpen ? 'mr-2' : 'mx-auto'}`} />
+              {isOpen && <span>Logout</span>}
             </Button>
           </div>
         </nav>

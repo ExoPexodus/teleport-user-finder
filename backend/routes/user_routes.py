@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 import logging
 from utils.db import get_db_session, get_db_connection
+from utils.auth import token_required
 from models.user import User
 import psycopg2.extras
 
@@ -8,6 +9,7 @@ import psycopg2.extras
 user_routes = Blueprint('user_routes', __name__)
 
 @user_routes.route('/api/users', methods=['GET'])
+@token_required
 def get_users():
     """Get all users or filter by portal."""
     portal = request.args.get('portal')
@@ -44,6 +46,7 @@ def get_users():
         session.close()
 
 @user_routes.route('/api/users/<user_id>', methods=['PUT'])
+@token_required
 def update_user(user_id):
     """Update a user by ID."""
     data = request.json
@@ -77,6 +80,7 @@ def update_user(user_id):
         session.close()
 
 @user_routes.route('/api/users', methods=['DELETE'])
+@token_required
 def delete_users():
     """Delete multiple users by IDs."""
     data = request.json
