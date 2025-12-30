@@ -12,9 +12,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
-import { X } from 'lucide-react';
+import { X, User as UserIcon, Building2, Shield, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface UserEditDialogProps {
   user: User;
@@ -25,12 +26,12 @@ interface UserEditDialogProps {
 
 export const UserEditDialog = ({ user, open, onOpenChange, onUserUpdate }: UserEditDialogProps) => {
   const [editedUser, setEditedUser] = useState<User>({ ...user });
-  const { toast } = useToast();
+  const [newRole, setNewRole] = useState('');
 
-  // Reset edited user when the dialog opens with a new user
   useEffect(() => {
     if (open) {
       setEditedUser({ ...user });
+      setNewRole('');
     }
   }, [user, open]);
 
@@ -40,145 +41,214 @@ export const UserEditDialog = ({ user, open, onOpenChange, onUserUpdate }: UserE
   };
 
   const handleSave = () => {
-    // Ensure we pass the latest edited user data
     onUserUpdate({ ...editedUser });
     onOpenChange(false);
   };
 
+  const handleAddRole = () => {
+    if (newRole && !editedUser.roles.includes(newRole)) {
+      setEditedUser(prev => ({
+        ...prev,
+        roles: [...prev.roles, newRole]
+      }));
+      setNewRole('');
+    }
+  };
+
+  const handleRemoveRole = (roleToRemove: string) => {
+    setEditedUser(prev => ({
+      ...prev,
+      roles: prev.roles.filter(role => role !== roleToRemove)
+    }));
+  };
+
+  const getPortalColor = (portal: string | null) => {
+    switch (portal) {
+      case 'kocharsoft': return 'bg-portal-kocharsoft/10 text-portal-kocharsoft border-portal-kocharsoft/30';
+      case 'igzy': return 'bg-portal-igzy/10 text-portal-igzy border-portal-igzy/30';
+      case 'maxicus': return 'bg-portal-maxicus/10 text-portal-maxicus border-portal-maxicus/30';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-status-success/10 text-status-success border-status-success/30';
+      case 'inactive': return 'bg-status-error/10 text-status-error border-status-error/30';
+      case 'pending': return 'bg-status-warning/10 text-status-warning border-status-warning/30';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const hasChanges = JSON.stringify(user) !== JSON.stringify(editedUser);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-teleport-darkgray text-white border-slate-700 max-w-2xl">
+      <DialogContent className="max-w-2xl bg-card border-border">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold flex items-center justify-between">
-            Edit User: {user.name}
-            <Badge className="ml-2" variant="outline">{user.status}</Badge>
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <UserIcon className="h-5 w-5 text-primary" />
+            Edit User
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">Name</Label>
-            <Input
-              id="name"
-              name="name"
-              value={editedUser.name}
-              onChange={handleInputChange}
-              className="col-span-3 bg-teleport-gray border-slate-700"
-            />
-          </div>
-
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="manager" className="text-right">Manager</Label>
-            <Input
-              id="manager"
-              name="manager"
-              value={editedUser.manager || ''}
-              onChange={handleInputChange}
-              className="col-span-3 bg-teleport-gray border-slate-700"
-              placeholder="Enter manager name"
-            />
-          </div>
-          
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="portal" className="text-right">Portal</Label>
-            <div className="col-span-3 flex gap-2">
-              {(['kocharsoft', 'igzy', 'maxicus'] as const).map((portal) => (
-                <Badge 
-                  key={portal}
-                  className={`cursor-pointer ${editedUser.portal === portal ? 
-                    (portal === 'kocharsoft' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 
-                    portal === 'igzy' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' : 
-                    'bg-orange-500/20 text-orange-400 border-orange-500/30') : 
-                    'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}
-                  onClick={() => setEditedUser(prev => ({ ...prev, portal }))}
-                  variant="outline"
-                >
-                  {portal}
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">Roles</Label>
-            <div className="col-span-3 flex flex-wrap gap-2">
-              {editedUser.roles.map((role, index) => (
-                <div key={index} className="flex items-center bg-indigo-900/50 text-indigo-300 border border-indigo-700 rounded-md px-2 py-1">
-                  <span className="text-sm">{role}</span>
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                      setEditedUser(prev => ({
-                        ...prev,
-                        roles: prev.roles.filter((_, i) => i !== index)
-                      }))
-                    }}
-                    className="ml-2 text-indigo-300 hover:text-white"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
+        <div className="grid grid-cols-2 gap-6 py-4">
+          {/* Left Column - Basic Info */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-sm font-medium">Name / Email</Label>
               <Input
-                placeholder="Add role and press Enter"
-                className="bg-teleport-gray border-slate-700 max-w-40"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.target as HTMLInputElement).value) {
-                    e.preventDefault();
-                    const newRole = (e.target as HTMLInputElement).value;
-                    setEditedUser(prev => ({
-                      ...prev,
-                      roles: [...prev.roles, newRole]
-                    }));
-                    (e.target as HTMLInputElement).value = '';
-                  }
-                }}
+                id="name"
+                name="name"
+                value={editedUser.name}
+                onChange={handleInputChange}
+                className="bg-background"
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">Status</Label>
-            <div className="col-span-3 flex gap-2">
-              {(['active', 'inactive', 'pending'] as const).map((status) => (
-                <Badge 
-                  key={status}
-                  className={`cursor-pointer ${editedUser.status === status ? 
-                    (status === 'active' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 
-                    status === 'inactive' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 
-                    'bg-yellow-500/20 text-yellow-400 border-yellow-500/30') : 
-                    'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}
-                  onClick={() => setEditedUser(prev => ({ ...prev, status }))}
-                  variant="outline"
-                >
-                  {status}
-                </Badge>
-              ))}
+            <div className="space-y-2">
+              <Label htmlFor="manager" className="text-sm font-medium">Manager</Label>
+              <Input
+                id="manager"
+                name="manager"
+                value={editedUser.manager || ''}
+                onChange={handleInputChange}
+                className="bg-background"
+                placeholder="Enter manager name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Portal</Label>
+              <div className="flex gap-2">
+                {(['kocharsoft', 'igzy', 'maxicus'] as const).map((portal) => (
+                  <button
+                    key={portal}
+                    type="button"
+                    onClick={() => setEditedUser(prev => ({ ...prev, portal }))}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md text-sm font-medium border transition-all",
+                      editedUser.portal === portal
+                        ? getPortalColor(portal)
+                        : "bg-background border-border text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {portal}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Status</Label>
+              <div className="flex gap-2">
+                {(['active', 'inactive', 'pending'] as const).map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setEditedUser(prev => ({ ...prev, status }))}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md text-sm font-medium border transition-all capitalize",
+                      editedUser.status === status
+                        ? getStatusColor(status)
+                        : "bg-background border-border text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">Created</Label>
-            <div className="col-span-3">
-              {editedUser.createdDate ? format(new Date(editedUser.createdDate), 'MMM d, yyyy') : 'Unknown'}
+          {/* Right Column - Roles & Metadata */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Roles ({editedUser.roles.length})
+              </Label>
+              <div className="p-3 rounded-lg border border-border bg-background min-h-[120px]">
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {editedUser.roles.map((role) => (
+                    <Badge 
+                      key={role} 
+                      variant="outline" 
+                      className="bg-primary/5 text-primary border-primary/20 pr-1"
+                    >
+                      {role}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRole(role)}
+                        className="ml-1.5 p-0.5 rounded hover:bg-primary/20"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Add role..."
+                    value={newRole}
+                    onChange={(e) => setNewRole(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddRole())}
+                    className="h-8 text-sm"
+                  />
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handleAddRole}
+                    disabled={!newRole}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">Last Login</Label>
-            <div className="col-span-3">
-              {editedUser.lastLogin 
-                ? format(new Date(editedUser.lastLogin), 'MMM d, yyyy h:mm a')
-                : 'Never logged in'}
+            <Separator />
+
+            {/* Metadata */}
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Created
+                </span>
+                <span className="text-foreground">
+                  {editedUser.createdDate ? format(new Date(editedUser.createdDate), 'MMM d, yyyy') : 'Unknown'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Last Login
+                </span>
+                <span className="text-foreground">
+                  {editedUser.lastLogin 
+                    ? format(new Date(editedUser.lastLogin), 'MMM d, yyyy h:mm a')
+                    : 'Never'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        <DialogFooter>
+        {/* Changes Indicator */}
+        {hasChanges && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-status-warning/10 border border-status-warning/20">
+            <AlertCircle className="h-4 w-4 text-status-warning" />
+            <span className="text-sm text-status-warning">You have unsaved changes</span>
+          </div>
+        )}
+
+        <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
+          <Button onClick={handleSave} disabled={!hasChanges}>
             Save Changes
           </Button>
         </DialogFooter>
