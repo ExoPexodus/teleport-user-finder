@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { List, Grid } from 'lucide-react';
+import { LayoutGrid, List } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export type ViewMode = 'card' | 'list';
+export type ViewMode = 'card' | 'table';
 
 interface ViewModeToggleProps {
   viewMode: ViewMode;
@@ -12,16 +12,31 @@ interface ViewModeToggleProps {
 
 export const ViewModeToggle = ({ viewMode, onViewModeChange }: ViewModeToggleProps) => {
   return (
-    <div className="flex items-center space-x-2">
-      <span className="text-white text-sm mr-2">View:</span>
-      <ToggleGroup type="single" value={viewMode} onValueChange={(value: ViewMode) => value && onViewModeChange(value)}>
-        <ToggleGroupItem value="card" aria-label="Card View" className="data-[state=on]:bg-teleport-blue">
-          <Grid className="h-4 w-4" />
-        </ToggleGroupItem>
-        <ToggleGroupItem value="list" aria-label="List View" className="data-[state=on]:bg-teleport-blue">
-          <List className="h-4 w-4" />
-        </ToggleGroupItem>
-      </ToggleGroup>
+    <div className="inline-flex items-center bg-secondary rounded-lg p-1">
+      <button
+        onClick={() => onViewModeChange('table')}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+          viewMode === 'table' 
+            ? "bg-card text-foreground shadow-sm" 
+            : "text-muted-foreground hover:text-foreground"
+        )}
+      >
+        <List size={16} />
+        <span>Table</span>
+      </button>
+      <button
+        onClick={() => onViewModeChange('card')}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+          viewMode === 'card' 
+            ? "bg-card text-foreground shadow-sm" 
+            : "text-muted-foreground hover:text-foreground"
+        )}
+      >
+        <LayoutGrid size={16} />
+        <span>Cards</span>
+      </button>
     </div>
   );
 };

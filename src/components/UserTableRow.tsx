@@ -2,69 +2,120 @@
 import React from 'react';
 import { User } from '@/types/user';
 import { Checkbox } from '@/components/ui/checkbox';
-import { TableCell, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface UserTableRowProps {
   user: User;
   isSelected: boolean;
   onSelectUser: (userId: string, isChecked: boolean) => void;
   onClick: (user: User) => void;
-  getStatusColor: (status: string) => string;
-  getPortalColor: (portal: string | null) => string;
 }
+
+const getStatusConfig = (status: string) => {
+  switch (status) {
+    case 'active':
+      return { label: 'Active', className: 'bg-success/15 text-success border-success/30' };
+    case 'inactive':
+      return { label: 'Inactive', className: 'bg-destructive/15 text-destructive border-destructive/30' };
+    case 'pending':
+      return { label: 'Pending', className: 'bg-warning/15 text-warning border-warning/30' };
+    default:
+      return { label: status, className: 'bg-muted text-muted-foreground' };
+  }
+};
+
+const getPortalConfig = (portal: string | null) => {
+  switch (portal) {
+    case 'kocharsoft':
+      return { className: 'bg-blue-500/15 text-blue-400 border-blue-500/30' };
+    case 'igzy':
+      return { className: 'bg-purple-500/15 text-purple-400 border-purple-500/30' };
+    case 'maxicus':
+      return { className: 'bg-orange-500/15 text-orange-400 border-orange-500/30' };
+    default:
+      return { className: 'bg-muted text-muted-foreground' };
+  }
+};
 
 export const UserTableRow = ({
   user,
   isSelected,
   onSelectUser,
   onClick,
-  getStatusColor,
-  getPortalColor,
 }: UserTableRowProps) => {
+  const statusConfig = getStatusConfig(user.status);
+  const portalConfig = getPortalConfig(user.portal);
+
   return (
-    <TableRow 
-      key={user.id} 
-      className="hover:bg-teleport-darkgray/50 border-slate-700 cursor-pointer text-white"
+    <tr 
+      className={cn(
+        "border-b border-border/50 transition-colors cursor-pointer",
+        isSelected ? "bg-primary/5" : "hover:bg-muted/30"
+      )}
       onClick={() => onClick(user)}
     >
-      <TableCell 
+      <td 
+        className="py-3 px-4 w-12"
         onClick={(e) => e.stopPropagation()}
-        className="w-12"
       >
         <Checkbox 
           checked={isSelected}
           onCheckedChange={(checked) => onSelectUser(user.id, Boolean(checked))}
-          className="border-slate-600"
         />
-      </TableCell>
-      <TableCell>{user.name}</TableCell>
-      <TableCell>
+      </td>
+      <td className="py-3 px-4">
+        <span className="font-medium text-foreground">{user.name}</span>
+      </td>
+      <td className="py-3 px-4">
         <div className="flex flex-wrap gap-1">
-          {user.roles.map(role => (
-            <Badge key={role} variant="outline" className="text-xs bg-indigo-900/50 text-indigo-300 border-indigo-700">
+          {user.roles.slice(0, 3).map(role => (
+            <Badge 
+              key={role} 
+              variant="outline" 
+              className="text-xs bg-primary/10 text-primary border-primary/20 font-normal"
+            >
               {role}
             </Badge>
           ))}
+          {user.roles.length > 3 && (
+            <Badge variant="outline" className="text-xs text-muted-foreground">
+              +{user.roles.length - 3}
+            </Badge>
+          )}
         </div>
-      </TableCell>
-      <TableCell>
-        <Badge className={`${getStatusColor(user.status)}`}>
-          {user.status}
-        </Badge>
-      </TableCell>
-      <TableCell>
+      </td>
+      <td className="py-3 px-4">
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            "status-dot",
+            user.status === 'active' && "status-dot-active",
+            user.status === 'inactive' && "status-dot-inactive",
+            user.status === 'pending' && "status-dot-pending"
+          )} />
+          <span className="text-sm text-muted-foreground capitalize">{user.status}</span>
+        </div>
+      </td>
+      <td className="py-3 px-4">
         {user.portal ? (
-          <Badge variant="outline" className={`text-xs ${getPortalColor(user.portal)}`}>
+          <Badge variant="outline" className={cn("text-xs", portalConfig.className)}>
             {user.portal}
           </Badge>
         ) : (
-          <span className="text-gray-400">None</span>
+          <span className="text-sm text-muted-foreground">—</span>
         )}
-      </TableCell>
-      <TableCell>{user.manager || <span className="text-gray-400">None</span>}</TableCell>
-      <TableCell>{format(new Date(user.createdDate), 'MMM d, yyyy')}</TableCell>
-    </TableRow>
+      </td>
+      <td className="py-3 px-4">
+        <span className="text-sm text-muted-foreground">
+          {user.manager || '—'}
+        </span>
+      </td>
+      <td className="py-3 px-4">
+        <span className="text-sm text-muted-foreground">
+          {format(new Date(user.createdDate), 'MMM d, yyyy')}
+        </span>
+      </td>
+    </tr>
   );
 };

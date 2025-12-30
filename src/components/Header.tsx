@@ -1,19 +1,15 @@
 
 import React from 'react';
-import { Database } from 'lucide-react';
+import { Shield } from 'lucide-react';
 
 export const Header = () => {
   return (
-    <header className="bg-teleport-gray border-b border-slate-800 text-white py-4 px-6 shadow-md">
-      <div className="container flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="bg-teleport-blue p-2 rounded-md">
-            <Database className="h-5 w-5" />
-          </div>
-          <h2 className="text-xl font-bold text-white">Teleport User Management Portal</h2>
-        </div>
-        <div className="text-sm text-teleport-lightblue">
-          Secure SSH Access Management
+    <header className="h-14 bg-card border-b border-border flex items-center px-6">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <span className="text-sm">Teleport User Management</span>
+          <span className="text-border">/</span>
+          <span className="text-sm text-foreground font-medium">Dashboard</span>
         </div>
       </div>
     </header>

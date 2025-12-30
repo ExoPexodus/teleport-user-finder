@@ -1,8 +1,18 @@
 
 import React, { useState } from 'react';
 import { User } from '@/types/user';
-import { Link } from 'react-router-dom';
-import { Clock, Download, Users, Calendar, LogOut } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { 
+  Users, 
+  Calendar, 
+  Clock, 
+  Download, 
+  RefreshCw, 
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  Shield
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +34,8 @@ import {
 import { fetchUsersFromSSH, manageOrphanedUsers } from '@/lib/api';
 import { LoginDialog } from '@/components/LoginDialog';
 import { OrphanedUsersDialog } from '@/components/OrphanedUsersDialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -33,6 +45,12 @@ interface SidebarProps {
   onFetchData?: () => void;
   onExportCsv?: () => void;
 }
+
+const navItems = [
+  { path: '/', label: 'Users', icon: Users, page: 'home' },
+  { path: '/scheduler', label: 'Role Scheduler', icon: Clock, page: 'scheduler' },
+  { path: '/scheduled-jobs', label: 'Scheduled Jobs', icon: Calendar, page: 'scheduled-jobs' },
+];
 
 export const Sidebar = ({ 
   isOpen, 
@@ -44,6 +62,7 @@ export const Sidebar = ({
 }: SidebarProps) => {
   const { toast } = useToast();
   const { logout } = useAuth();
+  const location = useLocation();
   const [fetchDialogOpen, setFetchDialogOpen] = useState(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [selectedPortal, setSelectedPortal] = useState<string>('');
@@ -53,13 +72,8 @@ export const Sidebar = ({
   const [currentPortal, setCurrentPortal] = useState<string>('');
   
   const portalOptions = ['kocharsoft', 'maxicus', 'igzy'];
-  
-  const toggleSidebar = () => {
-    setIsOpen(!isOpen);
-  };
 
   const handleFetchData = () => {
-    // Check if the user is authenticated
     const token = localStorage.getItem('token');
     if (!token) {
       toast({
@@ -70,12 +84,10 @@ export const Sidebar = ({
       setLoginDialogOpen(true);
       return;
     }
-    
     setFetchDialogOpen(true);
   };
 
   const handleLoginSuccess = () => {
-    // After successful login, open the fetch dialog
     setFetchDialogOpen(true);
   };
 
@@ -98,24 +110,20 @@ export const Sidebar = ({
         description: result.message || "Users fetched successfully"
       });
       
-      // Close fetch dialog
       setFetchDialogOpen(false);
       
-      // Check for orphaned users
       if (result.orphaned_users && result.orphaned_users.length > 0) {
         setOrphanedUsers(result.orphaned_users);
         setCurrentPortal(selectedPortal);
         setOrphanedUsersDialogOpen(true);
       }
       
-      // Refresh data
       if (onFetchData) {
         onFetchData();
       }
     } catch (error) {
       console.error("Error fetching users:", error);
       
-      // Check if the error is due to token expiration or authentication issues
       if (error instanceof Error && 
          (error.message.includes('Token has expired') || 
           error.message.includes('Token is invalid') || 
@@ -154,7 +162,6 @@ export const Sidebar = ({
       
       setOrphanedUsersDialogOpen(false);
       
-      // Refresh data after managing users
       if (onFetchData) {
         onFetchData();
       }
@@ -171,150 +178,180 @@ export const Sidebar = ({
   const handleExportCsv = () => {
     if (onExportCsv) {
       onExportCsv();
+    } else if (users && users.length > 0) {
+      const headers = ["ID", "Name", "Roles", "Status", "Created Date", "Last Login", "Manager", "Portal"];
+      const userRows = users.map(user => [
+        user.id,
+        `"${user.name}"`,
+        `"${user.roles.join("; ")}"`,
+        user.status,
+        new Date(user.createdDate).toLocaleDateString(),
+        user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never",
+        user.manager ? `"${user.manager}"` : "None",
+        user.portal ? `"${user.portal}"` : "None"
+      ]);
+      
+      const csvContent = [
+        headers.join(","),
+        ...userRows.map(row => row.join(","))
+      ].join("\n");
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `all_users_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "CSV Downloaded",
+        description: `${users.length} users exported to CSV successfully.`
+      });
     } else {
-      // Create CSV content from all users if no callback is provided
-      if (users && users.length > 0) {
-        const headers = ["ID", "Name", "Roles", "Status", "Created Date", "Last Login", "Manager", "Portal"];
-        const userRows = users.map(user => [
-          user.id,
-          `"${user.name}"`,
-          `"${user.roles.join("; ")}"`,
-          user.status,
-          new Date(user.createdDate).toLocaleDateString(),
-          user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never",
-          user.manager ? `"${user.manager}"` : "None",
-          user.portal ? `"${user.portal}"` : "None"
-        ]);
-        
-        const csvContent = [
-          headers.join(","),
-          ...userRows.map(row => row.join(","))
-        ].join("\n");
-        
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `all_users_${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        toast({
-          title: "CSV Downloaded",
-          description: `${users.length} users exported to CSV successfully.`
-        });
-      } else {
-        toast({
-          title: "No Data Available",
-          description: "There are no users to export.",
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "No Data Available",
+        description: "There are no users to export.",
+        variant: "destructive"
+      });
     }
   };
 
-  return (
-    <>
-      <aside 
-        className={`fixed top-0 left-0 h-full z-20 bg-teleport-gray transition-all duration-300 ease-in-out border-r border-slate-800 shadow-xl 
-                  ${isOpen ? 'w-64' : 'w-16'}`}
+  const NavItem = ({ path, label, icon: Icon, page }: typeof navItems[0]) => {
+    const isActive = location.pathname === path;
+    
+    const content = (
+      <Link
+        to={path}
+        className={cn(
+          "nav-item group",
+          isActive && "nav-item-active"
+        )}
       >
-        <div className="flex items-center justify-between p-4 border-b border-slate-800">
-          {isOpen && <span className="text-white font-bold">Teleport Admin</span>}
-          <button 
-            onClick={toggleSidebar} 
-            className="text-white hover:text-gray-300 rounded-full p-2 hover:bg-slate-700"
+        <Icon size={20} className={cn(
+          "shrink-0 transition-colors",
+          isActive ? "text-primary" : "text-sidebar-muted group-hover:text-sidebar-accent-foreground"
+        )} />
+        {isOpen && <span className="truncate">{label}</span>}
+      </Link>
+    );
+
+    if (!isOpen) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>{content}</TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">
+            {label}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return content;
+  };
+
+  const ActionButton = ({ 
+    icon: Icon, 
+    label, 
+    onClick, 
+    variant = 'default' 
+  }: { 
+    icon: typeof Users; 
+    label: string; 
+    onClick: () => void;
+    variant?: 'default' | 'danger';
+  }) => {
+    const content = (
+      <button
+        onClick={onClick}
+        className={cn(
+          "nav-item w-full",
+          variant === 'danger' && "text-destructive hover:bg-destructive/10"
+        )}
+      >
+        <Icon size={20} className={cn(
+          "shrink-0",
+          variant === 'danger' ? "text-destructive" : "text-sidebar-muted"
+        )} />
+        {isOpen && <span className="truncate">{label}</span>}
+      </button>
+    );
+
+    if (!isOpen) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>{content}</TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">
+            {label}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return content;
+  };
+
+  return (
+    <TooltipProvider delayDuration={0}>
+      <aside 
+        className={cn(
+          "fixed top-0 left-0 h-full z-20 bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 ease-out",
+          isOpen ? "w-60" : "w-16"
+        )}
+      >
+        {/* Logo / Header */}
+        <div className={cn(
+          "h-16 flex items-center border-b border-sidebar-border px-4",
+          isOpen ? "justify-between" : "justify-center"
+        )}>
+          {isOpen && (
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                <Shield size={18} className="text-primary" />
+              </div>
+              <span className="font-semibold text-foreground">Teleport</span>
+            </div>
+          )}
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="p-1.5 rounded-md text-sidebar-muted hover:text-foreground hover:bg-sidebar-accent transition-colors"
           >
-            {isOpen ? (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            )}
+            {isOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
           </button>
         </div>
 
-        <nav className="flex flex-col p-4">
-          <Link 
-            to="/" 
-            className={`flex items-center space-x-2 p-2 rounded mb-2 hover:bg-slate-700 transition-colors
-                        ${currentPage === 'home' ? 'bg-slate-700' : ''}`}
-          >
-            <Users size={20} className="text-white" />
-            {isOpen && <span className="text-white">User Management</span>}
-          </Link>
-          
-          <Link 
-            to="/scheduler" 
-            className={`flex items-center space-x-2 p-2 rounded mb-2 hover:bg-slate-700 transition-colors
-                        ${currentPage === 'scheduler' ? 'bg-slate-700' : ''}`}
-          >
-            <Clock size={20} className="text-white" />
-            {isOpen && <span className="text-white">Role Scheduler</span>}
-          </Link>
-          
-          <Link 
-            to="/scheduled-jobs" 
-            className={`flex items-center space-x-2 p-2 rounded mb-2 hover:bg-slate-700 transition-colors
-                        ${currentPage === 'scheduled-jobs' ? 'bg-slate-700' : ''}`}
-          >
-            <Calendar size={20} className="text-white" />
-            {isOpen && <span className="text-white">Scheduled Jobs</span>}
-          </Link>
-
-          <div className="mt-4 border-t border-slate-700 pt-4 space-y-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              className={`w-full justify-start text-white border-slate-700 hover:bg-slate-700 hover:text-white ${!isOpen && 'px-2'}`}
-              onClick={handleFetchData}
-            >
-              <Users size={16} className={`${isOpen ? 'mr-2' : 'mx-auto'}`} />
-              {isOpen && <span>Fetch Users</span>}
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="sm"
-              className={`w-full justify-start text-white border-slate-700 hover:bg-slate-700 hover:text-white ${!isOpen && 'px-2'}`}
-              onClick={handleExportCsv}
-            >
-              <Download size={16} className={`${isOpen ? 'mr-2' : 'mx-auto'}`} />
-              {isOpen && <span>Export CSV</span>}
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="sm"
-              className={`w-full justify-start text-red-400 border-slate-700 hover:bg-red-900/50 hover:text-red-300 ${!isOpen && 'px-2'}`}
-              onClick={logout}
-            >
-              <LogOut size={16} className={`${isOpen ? 'mr-2' : 'mx-auto'}`} />
-              {isOpen && <span>Logout</span>}
-            </Button>
-          </div>
+        {/* Navigation */}
+        <nav className="flex-1 p-3 space-y-1">
+          {navItems.map((item) => (
+            <NavItem key={item.path} {...item} />
+          ))}
         </nav>
+
+        {/* Actions */}
+        <div className="p-3 space-y-1 border-t border-sidebar-border">
+          <ActionButton icon={RefreshCw} label="Sync Users" onClick={handleFetchData} />
+          <ActionButton icon={Download} label="Export CSV" onClick={handleExportCsv} />
+        </div>
+
+        {/* Logout */}
+        <div className="p-3 border-t border-sidebar-border">
+          <ActionButton icon={LogOut} label="Logout" onClick={logout} variant="danger" />
+        </div>
       </aside>
 
       {/* Portal Selection Dialog */}
       <Dialog open={fetchDialogOpen} onOpenChange={setFetchDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Fetch Users from Portal</DialogTitle>
+            <DialogTitle>Sync Users from Portal</DialogTitle>
             <DialogDescription>
-              Select a portal to fetch users from via SSH.
+              Select a portal to synchronize user data via SSH.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <Select 
-              value={selectedPortal} 
-              onValueChange={setSelectedPortal}
-            >
+            <Select value={selectedPortal} onValueChange={setSelectedPortal}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a portal" />
               </SelectTrigger>
@@ -328,31 +365,22 @@ export const Sidebar = ({
             </Select>
           </div>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setFetchDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setFetchDialogOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleFetchUsersFromSSH}
-              disabled={isLoading || !selectedPortal}
-            >
-              {isLoading ? "Fetching..." : "Fetch Users"}
+            <Button onClick={handleFetchUsersFromSSH} disabled={isLoading || !selectedPortal}>
+              {isLoading ? "Syncing..." : "Sync Users"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Login Dialog */}
       <LoginDialog 
         isOpen={loginDialogOpen} 
         onClose={() => setLoginDialogOpen(false)}
         onSuccess={handleLoginSuccess}
       />
 
-      {/* Orphaned Users Dialog */}
       <OrphanedUsersDialog
         isOpen={orphanedUsersDialogOpen}
         onClose={() => setOrphanedUsersDialogOpen(false)}
@@ -360,6 +388,6 @@ export const Sidebar = ({
         portal={currentPortal}
         onManageUsers={handleManageOrphanedUsers}
       />
-    </>
+    </TooltipProvider>
   );
 };
