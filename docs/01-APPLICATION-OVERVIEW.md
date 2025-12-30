@@ -28,9 +28,11 @@ The Teleport User Management System is a web-based administrative interface desi
 
 ### 1. User Directory
 - View all users across multiple Teleport portals
-- Card view and table view display modes
-- Advanced search and filtering capabilities
+- **Table view (default)** with sticky headers and status indicators
+- Card view available for visual browsing
+- Advanced search and filtering with collapsible filter bar
 - Filter by portal, manager, and role (include/exclude)
+- Filter chips showing active filters with one-click clear
 
 ### 2. User Synchronization
 - Fetch users from Teleport servers via secure SSH connections
@@ -38,20 +40,31 @@ The Teleport User Management System is a web-based administrative interface desi
 - UPSERT-based sync to prevent duplicate entries
 
 ### 3. Role Management
-- View and edit user roles
+- View and edit user roles with two-column dialog layout
+- Visual role toggles with change indicators
 - Add or remove roles immediately
-- Schedule role changes for future dates/times
+- **Wizard-style role scheduler** with step indicators
+- Human-readable confirmation summaries
 - Track execution status and results
 
 ### 4. Orphaned User Handling
 - Detect users removed from Teleport but still in database
-- Options: keep (mark inactive), delete, or selectively manage
+- **Incident-style management dialog** with risk assessment
+- Quick actions: keep all, delete all, or selective management
+- Collapsible user review list
 
-### 5. Data Export
+### 5. Scheduled Jobs Dashboard
+- **Timeline-style expandable job cards**
+- Stats overview (pending, completed, failed counts)
+- Status filtering and search
+- Retry failed tasks / Cancel pending tasks
+- Execution logs viewer
+
+### 6. Data Export
 - Export user lists to CSV format
 - Customizable export based on current filters
 
-### 6. Authentication & Session Management
+### 7. Authentication & Session Management
 - JWT-based authentication
 - 9-hour session timeout with 10-minute warning
 - Session extension capability
@@ -79,7 +92,7 @@ The Teleport User Management System is a web-based administrative interface desi
 │                    MAIN DASHBOARD FLOW                          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  Dashboard → View Users List → Search/Filter Users              │
+│  Dashboard → View Users Table → Search/Filter Users             │
 │      ↓                                                          │
 │  Select User → View Details → Edit User / Manage Roles          │
 │      ↓                                                          │
@@ -102,12 +115,16 @@ The Teleport User Management System is a web-based administrative interface desi
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│                 ROLE SCHEDULING FLOW                             │
+│                 ROLE SCHEDULING FLOW (Wizard)                    │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  Select User → Choose Action (Add/Remove Roles)                 │
+│  Step 1: Select User → Search and pick from list                │
 │        ↓                                                        │
-│  Select Roles → Set Schedule Date/Time                          │
+│  Step 2: Configure Action → Add/Remove + Select Roles           │
+│        ↓                                                        │
+│  Step 3: Schedule → Set Date/Time or Execute Immediately        │
+│        ↓                                                        │
+│  Confirmation Summary → Human-readable action preview           │
 │        ↓                                                        │
 │  Create Scheduled Task → Store in Database                      │
 │        ↓                                                        │
@@ -140,6 +157,7 @@ Currently, the application uses a single admin account for authentication. All a
 |-------|------------|
 | Frontend | React 18, TypeScript, Vite |
 | UI Framework | Tailwind CSS, shadcn/ui |
+| Design System | Custom semantic tokens, HSL color palette |
 | State Management | TanStack Query (React Query) |
 | Routing | React Router v6 |
 | Backend | Python Flask |
@@ -150,6 +168,20 @@ Currently, the application uses a single admin account for authentication. All a
 | Task Scheduling | Custom Background Scheduler |
 | Containerization | Docker, Docker Compose |
 | Reverse Proxy | Nginx |
+
+---
+
+## UI/UX Design Principles
+
+The application follows an **enterprise-grade design language**:
+
+1. **Calm & Confident**: Minimalist aesthetic with refined indigo accent palette
+2. **High-Density Information**: Table-first design for efficient data scanning
+3. **Smart Filtering**: Collapsible filters with chip-based active filter display
+4. **Guided Workflows**: Wizard-style flows for complex operations (scheduling)
+5. **Incident Handling**: Serious, guided interfaces for dangerous operations (orphan management)
+6. **Visual Hierarchy**: Status dots, role badges with overflow indicators (+N)
+7. **Consistent Spacing**: Semantic design tokens for colors, shadows, and spacing
 
 ---
 
@@ -185,3 +217,5 @@ All services communicate within a Docker network, with only Nginx exposed to ext
 4. Dashboard analytics and reporting
 5. API rate limiting
 6. Two-factor authentication
+7. Dark/light mode toggle
+8. Keyboard shortcuts for power users
